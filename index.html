@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Stylle Ponto - Redirecionando...</title>
+  <script>
+    try {
+      const user = JSON.parse(localStorage.getItem('sp_currentUser'));
+      if (user) {
+        window.location.replace('/pages/adm/dashboard.html');
+      } else {
+        window.location.replace('/pages/login/index.html');
+      }
+    } catch (e) {
+      window.location.replace('/pages/login/index.html');
+    }
+  </script>
+</head>
+<body>
+  <p style="font-family: sans-serif; text-align: center; margin-top: 50px; color: #666;">
+    Redirecionando...
+  </p>
+</body>
+</html>
