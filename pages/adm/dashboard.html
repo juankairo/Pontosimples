@@ -43,6 +43,18 @@
   </div>
 </div>
 
+<!-- Modal de Exibição de Avisos do Sistema -->
+<div class="modal-overlay" id="announcementModal" style="z-index: 1000; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; right: 0; bottom: 0;">
+  <div class="modal" style="max-width: 460px; padding: 30px; border-radius: var(--radius); background: var(--white); border: 1.5px solid var(--border);">
+    <div style="font-size: 40px; text-align: center; margin-bottom: 16px;">📢</div>
+    <h3 style="font-size: 19px; font-weight: 800; color: var(--primary); margin-bottom: 4px; text-align: center;" id="annTitle">Aviso Importante</h3>
+    <div style="font-size: 11px; color: var(--text-muted); text-align: center; margin-bottom: 16px;" id="annMeta"></div>
+    <div style="font-size: 14px; color: var(--text); line-height: 1.6; max-height: 180px; overflow-y: auto; margin-bottom: 24px; padding: 12px; background: #f8fafc; border-radius: 8px; border-left: 4px solid var(--accent); text-align: left;" id="annContent">
+    </div>
+    <button class="btn btn-primary" style="width: 100%; justify-content: center;" id="btnDismissAnn">Marcar como Lido & Fechar</button>
+  </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   const user = getCurrentUser() || { name: 'Usuário' };
@@ -51,7 +63,50 @@ document.addEventListener('DOMContentLoaded', () => {
   buildRecords();
   buildUsers();
   buildCharts();
+  checkAnnouncements(); // Verificar avisos importantes ao carregar o sistema
 });
+
+function checkAnnouncements() {
+  const currentUser = getCurrentUser();
+  if (!currentUser) return;
+  
+  const announcements = DB.get('announcements') || [];
+  const read = JSON.parse(localStorage.getItem('sp_read_announcements_' + currentUser.id) || '[]');
+  
+  // Filtrar avisos direcionados para o usuário atual
+  const matching = announcements.filter(a => {
+    if (read.includes(a.id)) return false;
+    
+    // Filtro de Perfil
+    if (a.targetRole !== 'all' && a.targetRole !== currentUser.role) return false;
+    
+    // Filtro de Setor
+    if (a.targetSectorId) {
+      const userSectors = currentUser.sectors || (currentUser.sectorId ? [currentUser.sectorId] : []);
+      if (!userSectors.includes(a.targetSectorId)) return false;
+    }
+    
+    return true;
+  });
+  
+  if (matching.length > 0) {
+    const active = matching[0];
+    
+    document.getElementById('annTitle').textContent = active.title;
+    document.getElementById('annMeta').textContent = `Publicado em: ${active.date}`;
+    document.getElementById('annContent').textContent = active.content;
+    
+    const btn = document.getElementById('btnDismissAnn');
+    btn.onclick = () => {
+      read.push(active.id);
+      localStorage.setItem('sp_read_announcements_' + currentUser.id, JSON.stringify(read));
+      document.getElementById('announcementModal').style.display = 'none';
+      checkAnnouncements(); // Verifica se há mais avisos não lidos
+    };
+    
+    document.getElementById('announcementModal').style.display = 'flex';
+  }
+}
 
 function buildStats() {
   const currentUser = getCurrentUser() || { role: 'funcionario', id: 1 };
@@ -76,7 +131,6 @@ function buildStats() {
   const ativos = activeUsersList.filter(u=>u.status==='ativo').length;
   const pendentes = users.filter(u=>u.status==='pendente').length;
 
-  // total overtime in minutes
   let totalOvMin = 0;
   bankList.filter(b=>b.type==='Hora Extra').forEach(b=>{
     const m = b.hours.replace(/[+\-h]/g,':').split(':');
@@ -98,54 +152,56 @@ function buildStats() {
   } else {
     card1 = statCard('Usuários Ativos', ativos, 'Total cadastrado', 'blue', '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/><circle cx="17.5" cy="8.5" r="2.7"/><path d="M16 13.7c2.7.3 4.8 2.7 4.8 5.6"/>');
     card2 = statCard('Horas Extras Totais', ovStr, 'Acumuladas aprovadas', 'green', '<path d="M3 17l5-5 4 4 8-9"/><path d="M16 6h4v4"/>');
-    card3 = statCard('Solicitações Pendentes', pendentes, 'Aguardando aprovação', 'orange', '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>');
+    card3 = statCard('Solicitações', pendentes, 'Aguardando aprovação', 'orange', '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>', 'location.href="/pages/adm/solicitacoes.html"');
   }
 
   document.getElementById('statsRow').innerHTML = card1 + card2 + card3;
 }
 
-function statCard(title, val, sub, color, icon, onclick='') {
-  return `<div class="stat-card" ${onclick ? `onclick="${onclick}" style="cursor:pointer;"` : ''}>
-    <div class="stat-icon ${color==='green'?'green':color==='orange'?'orange':color==='red'?'red':color==='purple'?'purple':''}">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${icon}</svg>
+function statCard(title, val, desc, color, svg, onclick='') {
+  return `
+  <div class="stat-card" ${onclick?`onclick="${onclick}" style="cursor:pointer;"`:''}>
+    <div style="flex:1">
+      <div class="lbl">${title}</div>
+      <div class="val">${val}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:4px">${desc}</div>
     </div>
-    <div class="stat-value">${val}</div>
-    <div class="stat-title">${title}</div>
-    <div class="stat-sub">${sub}</div>
+    <div class="stat-icon stat-icon-${color}">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${svg}</svg>
+    </div>
   </div>`;
 }
 
 function buildRecords() {
   const currentUser = getCurrentUser() || { role: 'funcionario', id: 1 };
-  const records = DB.get('records');
   const users = DB.get('users');
+  const records = DB.get('records');
   const fullMe = users.find(u => u.id === currentUser.id) || currentUser;
 
-  let filteredRecs = records;
-  if (currentUser.role === 'supervisor') {
-    const teamIds = users.filter(u => u.sectorId === fullMe.sectorId).map(u => u.id);
-    filteredRecs = records.filter(r => teamIds.includes(r.userId));
-  } else if (currentUser.role === 'funcionario') {
-    filteredRecs = records.filter(r => r.userId === currentUser.id);
+  let teamIds = users.map(u => u.id);
+  if (currentUser.role === 'supervisor' || currentUser.role === 'funcionario') {
+    teamIds = users.filter(u => u.sectorId === fullMe.sectorId).map(u => u.id);
   }
 
-  const sorted = [...filteredRecs].sort((a,b)=>b.date.localeCompare(a.date));
-  document.getElementById('recCount').textContent = filteredRecs.length + ' registros';
-  document.getElementById('recBody').innerHTML = sorted.slice(0,8).map(r => {
-    const u = users.find(x=>x.id===r.userId)||{name:'?'};
-    return `<tr>
+  const recs = records.filter(r => teamIds.includes(r.userId)).slice(0, 10);
+  document.getElementById('recCount').textContent = recs.length + ' recentes';
+
+  document.getElementById('recBody').innerHTML = recs.map(r => {
+    const emp = users.find(u => u.id === r.userId) || { name: 'Desconhecido' };
+    return `
+    <tr>
       <td><div class="employee">
-        <div class="avatar avatar-xs">${avatar(u.name)}</div>
-        <div><div class="emp-name">${u.name}</div><div class="emp-email">${u.email||''}</div></div>
+        <div class="avatar avatar-sm">${avatar(emp.name)}</div>
+        <div class="emp-name">${emp.name}</div>
       </div></td>
       <td>${fmtDate(r.date)}</td>
-      <td>${r.in1||'-'}</td>
-      <td>${r.out2||r.out1||'-'}</td>
-      <td><strong>${r.hoursWorked||'-'}</strong></td>
-      <td style="color:${r.overtime&&r.overtime!=='0h00'?'var(--success)':'var(--text-muted)'}">${r.overtime||'-'}</td>
+      <td>${r.in1||'—'}</td>
+      <td>${r.out2||'—'}</td>
+      <td>${r.hoursWorked||'—'}</td>
+      <td style="color:${r.overtime&&r.overtime!=='0h00'?'var(--success)':'inherit'}">${r.overtime||'—'}</td>
       <td><span class="status-badge status-${r.status}">${r.status}</span></td>
     </tr>`;
-  }).join('') || '<tr><td colspan="7" class="empty-state">Nenhum registro</td></tr>';
+  }).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--text-muted);padding:24px">Nenhum registro de ponto encontrado</td></tr>';
 }
 
 function buildUsers() {
@@ -153,27 +209,20 @@ function buildUsers() {
   const users = DB.get('users');
   const fullMe = users.find(u => u.id === currentUser.id) || currentUser;
 
-  let filteredUsers = users;
-  if (currentUser.role === 'supervisor') {
-    filteredUsers = users.filter(u => u.sectorId === fullMe.sectorId);
-  } else if (currentUser.role === 'funcionario') {
-    filteredUsers = users.filter(u => u.sectorId === fullMe.sectorId);
+  let teamList = users;
+  if (currentUser.role === 'supervisor' || currentUser.role === 'funcionario') {
+    teamList = users.filter(u => u.sectorId === fullMe.sectorId);
   }
 
-  document.getElementById('usersCount').textContent = filteredUsers.length + ' usuários';
-  const roleClass = { admin:'role-admin', supervisor:'role-supervisor', funcionario:'role-funcionario', rh:'role-rh' };
-  const roleLabel = { admin:'Admin', supervisor:'Supervisor', funcionario:'Funcionário', rh:'RH' };
-  document.getElementById('usersGrid').innerHTML = filteredUsers.filter(u=>u.status!=='pendente').map(u=>`
+  const list = teamList.filter(u => u.status === 'ativo').slice(0, 12);
+  document.getElementById('usersCount').textContent = list.length + ' ativos';
+
+  document.getElementById('usersGrid').innerHTML = list.map(u => `
     <div class="user-card">
-      <div class="user-left">
-        <div class="avatar avatar-md">${avatar(u.name)}</div>
-        <div>
-          <div class="emp-name" style="font-size:13px">${u.name}</div>
-          <div class="emp-email">${u.email}</div>
-        </div>
-      </div>
-      <span class="role-badge ${roleClass[u.role]||''}">${roleLabel[u.role]||u.role}</span>
-    </div>`).join('');
+      <div class="avatar avatar-lg" style="margin: 0 auto 12px auto">${avatar(u.name)}</div>
+      <div style="font-weight:700;font-size:14px;color:var(--primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${u.name}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${getSectorName(u.sectorId)}</div>
+    </div>`).join('') || '<div class="empty-state" style="padding:24px;grid-column:1/-1;"><p>Nenhum usuário cadastrado</p></div>';
 }
 
 function buildCharts() {
@@ -188,7 +237,6 @@ function buildCharts() {
     teamIds = users.filter(u => u.sectorId === fullMe.sectorId).map(u => u.id);
   }
 
-  // Overtime per company
   const ovByComp = {};
   companies.forEach(c=>ovByComp[c.name]=0);
   
@@ -215,7 +263,6 @@ function buildCharts() {
     });
   }
 
-  // Frequency this month
   const records = DB.get('records').filter(r => teamIds.includes(r.userId));
   const now = new Date();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();

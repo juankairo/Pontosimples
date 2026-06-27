@@ -15,30 +15,54 @@
   <div class="grid-2" style="align-items:start">
     <!-- COLUNA ESQUERDA -->
     <div>
-      <!-- Geral -->
+      <!-- Criar Aviso -->
       <div class="panel" style="padding:24px;margin-bottom:20px">
-        <div class="settings-section">
-          <h3>⚙️ Configurações Gerais</h3>
-          <div class="form-group"><label>Nome do Sistema</label>
-            <input type="text" class="form-control" id="sNome" placeholder="Ponto Eletrônico">
-          </div>
-          <div class="form-group"><label>E-mail Remetente</label>
-            <input type="email" class="form-control" id="sEmail" placeholder="noreply@empresa.com">
-          </div>
+        <h3 style="font-size:14px;font-weight:700;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--border)">📢 Criar Novo Aviso Geral</h3>
+        
+        <div class="form-group">
+          <label>Título do Aviso *</label>
+          <input type="text" class="form-control" id="avisoTitulo" placeholder="Ex: Manutenção agendada, Novo Feriado, etc.">
+        </div>
+        
+        <div class="form-group">
+          <label>Conteúdo do Aviso *</label>
+          <textarea class="form-control" id="avisoConteudo" rows="4" placeholder="Escreva a mensagem que aparecerá ao usuário ao acessar o sistema..." style="resize:vertical; min-height:80px;"></textarea>
         </div>
 
+        <div class="form-group">
+          <label>Filtro de Perfil de Acesso</label>
+          <select class="form-control" id="sAvisoPerfil">
+            <option value="all">Todos os Perfis</option>
+            <option value="funcionario">Apenas Funcionários</option>
+            <option value="supervisor">Apenas Supervisores</option>
+            <option value="admin">Apenas Administradores</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Filtro de Setor</label>
+          <select class="form-control" id="sAvisoSetor">
+            <option value="">Todos os Setores</option>
+          </select>
+        </div>
+
+        <button class="btn btn-primary" onclick="salvarAviso()" style="width:100%; justify-content:center; margin-top:8px;">📢 Publicar Aviso</button>
+      </div>
+
+      <!-- Aparência -->
+      <div class="panel" style="padding:24px;margin-bottom:20px">
         <div class="settings-section">
           <h3>🎨 Aparência</h3>
           <div class="form-group"><label>Cor Principal</label>
             <div class="color-row">
-              <input type="color" id="sCor1" onchange="previewColor()">
+              <input type="color" id="sCor1" onchange="syncColorHex('sCor1','sCor1Hex')">
               <input type="text" class="form-control" id="sCor1Hex" placeholder="#0b1d4d" style="flex:1" oninput="syncColorFromText('sCor1','sCor1Hex')">
               <div class="color-preview" id="prev1"></div>
             </div>
           </div>
           <div class="form-group"><label>Cor Secundária / Destaque</label>
             <div class="color-row">
-              <input type="color" id="sCor2" onchange="previewColor()">
+              <input type="color" id="sCor2" onchange="syncColorHex('sCor2','sCor2Hex')">
               <input type="text" class="form-control" id="sCor2Hex" placeholder="#2563EB" style="flex:1" oninput="syncColorFromText('sCor2','sCor2Hex')">
               <div class="color-preview" id="prev2"></div>
             </div>
@@ -86,32 +110,18 @@
 
     <!-- COLUNA DIREITA -->
     <div>
-      <!-- Preview -->
+      <!-- Avisos Ativos -->
       <div class="panel" style="padding:24px;margin-bottom:20px">
-        <h3 style="font-size:14px;font-weight:700;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--border)">👁 Pré-visualização</h3>
-        <div id="previewBox" style="border-radius:10px;overflow:hidden;border:1.5px solid var(--border)">
-          <div id="prevSidebar" style="padding:14px 16px;display:flex;align-items:center;gap:10px">
-            <div style="width:28px;height:28px;border-radius:6px;background:var(--accent);display:flex;align-items:center;justify-content:center">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-            </div>
-            <div>
-              <div id="prevNome" style="font-size:14px;font-weight:700;color:white">Ponto Eletrônico</div>
-              <div style="font-size:10px;color:rgba(255,255,255,.6)">Sistema de Ponto</div>
-            </div>
-          </div>
-          <div style="background:#f0f2f8;padding:14px 16px">
-            <div style="display:flex;gap:8px;flex-wrap:wrap">
-              <div id="prevBtn" style="padding:7px 14px;border-radius:7px;color:white;font-size:12px;font-weight:700">Administrador</div>
-              <div style="padding:7px 14px;border-radius:7px;background:white;border:1.5px solid #e4e7ef;font-size:12px;color:#1f2430">Dashboard</div>
-            </div>
-          </div>
+        <h3 style="font-size:14px;font-weight:700;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--border)">📋 Avisos Ativos no Sistema</h3>
+        <div id="avisoList" style="display:flex; flex-direction:column; gap:10px; max-height: 280px; overflow-y:auto;">
+          <!-- Injetado dinamicamente -->
         </div>
       </div>
 
       <!-- Notificações -->
       <div class="panel" style="padding:24px;margin-bottom:20px">
         <div class="settings-section">
-          <h3>🔔 Notificações</h3>
+          <h3>🔔 Notificações de Alerta</h3>
           <div style="display:flex;flex-direction:column;gap:10px">
             <label class="checkbox-wrap"><input type="checkbox" id="nSolic" checked> Novas solicitações de acesso</label>
             <label class="checkbox-wrap"><input type="checkbox" id="nAtraso" checked> Funcionários com atraso</label>
@@ -141,14 +151,14 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  renderTopbar('Configurações', 'Personalize o sistema');
+  renderTopbar('Configurações', 'Personalize as preferências e envie avisos para os usuários');
   carregarConfig();
+  fillSectors();
+  renderAvisos();
 });
 
 function carregarConfig() {
   const s = DB.getObj('settings', {});
-  document.getElementById('sNome').value        = s.systemName||'Ponto Eletrônico';
-  document.getElementById('sEmail').value       = s.senderEmail||'noreply@stylleponto.com';
   document.getElementById('sLogo').value        = s.logo||'';
   document.getElementById('sCor1').value        = s.primaryColor||'#0b1d4d';
   document.getElementById('sCor1Hex').value     = s.primaryColor||'#0b1d4d';
@@ -158,36 +168,29 @@ function carregarConfig() {
   document.getElementById('sHoraExtra').value   = s.overtimeMinimum||'10';
   document.getElementById('sBanco').value       = s.bankEnabled||'sim';
   document.getElementById('sLimiteExtra').value = s.overtimeLimit||'';
-  previewColor();
+  
+  document.getElementById('prev1').style.background = s.primaryColor||'#0b1d4d';
+  document.getElementById('prev2').style.background = s.secondaryColor||'#2563EB';
 }
 
-function previewColor() {
-  const c1 = document.getElementById('sCor1').value;
-  const c2 = document.getElementById('sCor2').value;
-  document.getElementById('sCor1Hex').value = c1;
-  document.getElementById('sCor2Hex').value = c2;
-  document.getElementById('prev1').style.background = c1;
-  document.getElementById('prev2').style.background = c2;
-  document.getElementById('prevSidebar').style.background = c1;
-  document.getElementById('prevBtn').style.background = c2;
-  document.getElementById('prevNome').textContent = document.getElementById('sNome').value||'Ponto Eletrônico';
+function syncColorHex(colorId, hexId) {
+  const c = document.getElementById(colorId).value;
+  document.getElementById(hexId).value = c;
+  document.getElementById(colorId === 'sCor1' ? 'prev1' : 'prev2').style.background = c;
 }
 
 function syncColorFromText(colorId, hexId) {
   const val = document.getElementById(hexId).value;
   if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
     document.getElementById(colorId).value = val;
-    previewColor();
+    document.getElementById(colorId === 'sCor1' ? 'prev1' : 'prev2').style.background = val;
   }
 }
 
-// Escuta input de nome
-document.getElementById('sNome').addEventListener('input', previewColor);
-
 function salvar() {
   const s = {
-    systemName:     document.getElementById('sNome').value.trim(),
-    senderEmail:    document.getElementById('sEmail').value.trim(),
+    systemName:     'Ponto Eletrônico',
+    senderEmail:    'noreply@pontoeletronico.com',
     logo:           document.getElementById('sLogo').value.trim(),
     primaryColor:   document.getElementById('sCor1').value,
     secondaryColor: document.getElementById('sCor2').value,
@@ -196,9 +199,7 @@ function salvar() {
     bankEnabled:    document.getElementById('sBanco').value,
     overtimeLimit:  document.getElementById('sLimiteExtra').value,
   };
-  if (!s.systemName) { toast('Informe o nome do sistema','warning'); return; }
   DB.setObj('settings', s);
-  // Apply CSS vars live
   document.documentElement.style.setProperty('--primary', s.primaryColor);
   document.documentElement.style.setProperty('--accent', s.secondaryColor);
   logAudit('Configurações atualizadas', 'Sistema');
@@ -207,7 +208,7 @@ function salvar() {
 
 function resetarPadrao() {
   if (!confirm('Restaurar configurações padrão?')) return;
-  DB.setObj('settings', { systemName:'Ponto Eletrônico', primaryColor:'#0b1d4d', secondaryColor:'#2563EB', senderEmail:'noreply@stylleponto.com', delayTolerance:'10', overtimeMinimum:'10', bankEnabled:'sim' });
+  DB.setObj('settings', { systemName:'Ponto Eletrônico', primaryColor:'#0b1d4d', secondaryColor:'#2563EB', senderEmail:'noreply@pontoeletronico.com', delayTolerance:'10', overtimeMinimum:'10', bankEnabled:'sim' });
   carregarConfig();
   toast('Configurações restauradas!');
 }
@@ -218,6 +219,66 @@ function limparDados() {
   localStorage.clear();
   toast('Dados limpos. Recarregando...','error');
   setTimeout(()=>location.href='/index.html', 1500);
+}
+
+/* ===================== GERENCIAMENTO DE AVISOS ===================== */
+function fillSectors() {
+  const sel = document.getElementById('sAvisoSetor');
+  sel.innerHTML = '<option value="">Todos os Setores</option>';
+  DB.get('sectors').forEach(s => sel.innerHTML += `<option value="${s.id}">${s.name}</option>`);
+}
+
+function renderAvisos() {
+  const list = DB.get('announcements') || [];
+  const listDiv = document.getElementById('avisoList');
+  listDiv.innerHTML = list.length ? list.map(a => `
+    <div class="list-item" style="padding:12px;border: 1.5px solid var(--border); border-radius: 8px; display:flex;justify-content:space-between;align-items:center;background:#ffffff;">
+      <div style="flex:1; padding-right:12px;">
+        <div style="font-weight:700;font-size:13.5px;color:var(--primary)">${a.title}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
+          Perfil: ${a.targetRole === 'all' ? 'Todos' : a.targetRole === 'supervisor' ? 'Supervisores' : a.targetRole === 'admin' ? 'Admins' : 'Funcionários'}
+          ${a.targetSectorId ? ' · Setor: ' + getSectorName(a.targetSectorId) : ''}
+        </div>
+        <div style="font-size:12px;color:var(--text);margin-top:6px;line-height:1.4;">${a.content.substring(0, 60)}${a.content.length > 60 ? '...' : ''}</div>
+      </div>
+      <button class="btn btn-danger btn-sm" onclick="excluirAviso(${a.id})" style="padding:6px 10px; flex-shrink:0;">🗑</button>
+    </div>`).join('') : '<div class="empty-state" style="padding:20px; border: 1.5px dashed var(--border); border-radius: 8px;"><p>Nenhum aviso ativo</p></div>';
+}
+
+function salvarAviso() {
+  const title = document.getElementById('avisoTitulo').value.trim();
+  const content = document.getElementById('avisoConteudo').value.trim();
+  const targetRole = document.getElementById('sAvisoPerfil').value;
+  const targetSectorId = parseInt(document.getElementById('sAvisoSetor').value) || null;
+  
+  if (!title || !content) { toast('Preencha título e conteúdo do aviso', 'warning'); return; }
+  
+  const list = DB.get('announcements') || [];
+  list.unshift({
+    id: Date.now(),
+    title,
+    content,
+    targetRole,
+    targetSectorId,
+    date: new Date().toLocaleDateString('pt-BR')
+  });
+  
+  DB.set('announcements', list);
+  toast('Aviso publicado com sucesso!');
+  
+  document.getElementById('avisoTitulo').value = '';
+  document.getElementById('avisoConteudo').value = '';
+  
+  renderAvisos();
+}
+
+function excluirAviso(id) {
+  if (!confirm('Deseja excluir este aviso?')) return;
+  const list = DB.get('announcements') || [];
+  const filtered = list.filter(a => a.id !== id);
+  DB.set('announcements', filtered);
+  toast('Aviso removido!', 'error');
+  renderAvisos();
 }
 </script>
 </body>
