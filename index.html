@@ -68,6 +68,7 @@
     font-weight: 700; font-size: 14px; text-decoration: none;
     box-shadow: 0 4px 14px rgba(37, 99, 235, 0.2);
     transition: all 0.2s ease;
+    border: none; cursor: pointer;
   }
   .btn-cta:hover {
     transform: translateY(-2px);
@@ -96,7 +97,7 @@
     background: var(--white); color: var(--primary);
     padding: 12px 24px; border-radius: 30px; border: 1.5px solid var(--border);
     font-weight: 700; font-size: 15px; text-decoration: none;
-    transition: all 0.2s;
+    transition: all 0.2s; cursor: pointer;
   }
   .btn-secondary:hover {
     background: #f1f5f9; border-color: #cbd5e1;
@@ -207,6 +208,33 @@
   .benefit-list-item { display: flex; align-items: flex-start; gap: 10px; font-size: 14.5px; font-weight: 600; color: var(--text); }
   .benefit-list-item svg { width: 18px; height: 18px; color: #22c55e; flex-shrink: 0; margin-top: 2px; }
 
+  /* Lead Request Modal */
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(11, 29, 77, 0.4); backdrop-filter: blur(8px);
+    display: none; align-items: center; justify-content: center; z-index: 200;
+  }
+  .modal-card {
+    background: var(--white); border-radius: 20px; padding: 32px;
+    width: 100%; max-width: 440px; border: 1.5px solid var(--border);
+    box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+  }
+  .modal-card h3 { font-size: 20px; font-weight: 800; color: var(--primary); margin-bottom: 8px; }
+  .modal-card p { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+  
+  .form-control {
+    width: 100%; padding: 10px 14px; border-radius: 8px;
+    border: 1.5px solid var(--border); font-size: 13.5px;
+    color: var(--text); outline: none; transition: border-color 0.2s;
+  }
+  .form-control:focus { border-color: var(--accent); }
+  
+  .form-group { margin-bottom: 14px; text-align: left; }
+  .form-group label {
+    display: block; font-size: 11px; font-weight: 700; color: var(--primary);
+    text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px;
+  }
+
   /* CTA Banner */
   .cta-banner {
     max-width: 1200px; margin: 40px auto 80px auto; padding: 60px 24px;
@@ -267,7 +295,7 @@
     <h1>Controle de ponto seguro, ágil e robusto para sua empresa.</h1>
     <p>Uma plataforma corporativa moderna focada na integridade dos dados e otimização de rotinas de RH. Estruturado com banco de dados seguro, logs de auditoria detalhados e conformidade legal de horas extras.</p>
     <div class="hero-actions">
-      <a href="/pages/cadastro/index.html" class="btn-cta" style="padding:14px 28px; font-size:15px;" id="heroRegisterBtn">Cadastrar Empresa</a>
+      <button class="btn-cta" style="padding:14px 28px; font-size:15px;" id="heroRegisterBtn" onclick="openRequestModal(event)">Começar Teste Grátis</button>
       <a href="#features" class="btn-secondary">Conhecer Arquitetura</a>
     </div>
   </div>
@@ -415,10 +443,53 @@
 </section>
 
 <section class="cta-banner">
-  <h2>Prepare o controle de ponto da sua empresa hoje mesmo</h2>
+  <h2>Simplifique o controle de ponto na sua empresa</h2>
   <p>Mais conformidade jurídica, integridade de banco de dados relacional e facilidade de gestão para equipes de qualquer tamanho.</p>
-  <a href="/pages/cadastro/index.html" class="btn-cta" id="ctaBottomBtn">Experimentar Grátis</a>
+  <button class="btn-cta" id="ctaBottomBtn" onclick="openRequestModal(event)">Experimentar Grátis</button>
 </section>
+
+<!-- Modal de Solicitação de Teste -->
+<div class="modal-overlay" id="requestModal">
+  <div class="modal-card" id="requestFormCard" style="margin: 10% auto;">
+    <h3>Solicitar Acesso de Teste</h3>
+    <p>Preencha os campos abaixo. Em breve entraremos em contato com suas credenciais temporárias.</p>
+    
+    <form id="leadForm" onsubmit="handleLeadSubmit(event)">
+      <div class="form-group">
+        <label>Nome Completo *</label>
+        <input type="text" class="form-control" id="leadName" placeholder="Seu nome completo" required>
+      </div>
+      <div class="form-group">
+        <label>E-mail Corporativo *</label>
+        <input type="email" class="form-control" id="leadEmail" placeholder="seu@empresa.com" required>
+      </div>
+      <div class="form-group">
+        <label>Nome da Empresa *</label>
+        <input type="text" class="form-control" id="leadCompany" placeholder="Nome da empresa" required>
+      </div>
+      <div class="form-group">
+        <label>Quantidade de Funcionários</label>
+        <select class="form-control" id="leadSize">
+          <option value="1-9">1 a 9 funcionários</option>
+          <option value="10-49">10 a 49 funcionários</option>
+          <option value="50+">Mais de 50 funcionários</option>
+        </select>
+      </div>
+      <div style="display:flex; gap:8px; margin-top:20px;">
+        <button type="button" class="btn-secondary" style="flex:1; border-radius:30px; font-size:13.5px; padding:10px;" onclick="closeRequestModal()">Cancelar</button>
+        <button type="submit" class="btn-cta" style="flex:1.2; border-radius:30px; font-size:13.5px; padding:10px;">Enviar Solicitação</button>
+      </div>
+    </form>
+  </div>
+  
+  <!-- Estado de Sucesso -->
+  <div class="modal-card" id="requestSuccessCard" style="margin: 10% auto; display:none; text-align:center;">
+    <div style="font-size: 40px; margin-bottom: 16px;">✅</div>
+    <h3>Solicitação Enviada!</h3>
+    <p>Recebemos seus dados. As credenciais de teste temporárias foram enviadas para o e-mail informado!</p>
+    <button class="btn-cta" style="width: 100%; border-radius:30px; padding:12px;" onclick="closeRequestModal()">Entendido</button>
+  </div>
+</div>
 
 <footer>
   <p>&copy; 2026 Ponto Eletrônico. Todos os direitos reservados.</p>
@@ -441,15 +512,58 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       if (ctaBottomBtn) {
         ctaBottomBtn.textContent = 'Acessar Painel';
-        ctaBottomBtn.href = '/pages/adm/dashboard.html';
+        ctaBottomBtn.removeAttribute('onclick');
+        ctaBottomBtn.onclick = () => { window.location.href = '/pages/adm/dashboard.html'; };
       }
       if (heroRegisterBtn) {
         heroRegisterBtn.textContent = 'Acessar Meu Painel';
-        heroRegisterBtn.href = '/pages/adm/dashboard.html';
+        heroRegisterBtn.removeAttribute('onclick');
+        heroRegisterBtn.onclick = () => { window.location.href = '/pages/adm/dashboard.html'; };
       }
     }
   } catch (e) {}
 });
+
+function openRequestModal(e) {
+  if (e) e.preventDefault();
+  
+  // Se logado, ir para o painel
+  try {
+    const user = JSON.parse(localStorage.getItem('sp_currentUser'));
+    if (user) {
+      window.location.href = '/pages/adm/dashboard.html';
+      return;
+    }
+  } catch (e) {}
+
+  document.getElementById('requestModal').style.display = 'flex';
+  document.getElementById('requestFormCard').style.display = 'block';
+  document.getElementById('requestSuccessCard').style.display = 'none';
+}
+
+function closeRequestModal() {
+  document.getElementById('requestModal').style.display = 'none';
+}
+
+function handleLeadSubmit(event) {
+  event.preventDefault();
+  const name = document.getElementById('leadName').value.trim();
+  const email = document.getElementById('leadEmail').value.trim();
+  const company = document.getElementById('leadCompany').value.trim();
+  const size = document.getElementById('leadSize').value;
+  
+  // Salvar lead no localStorage
+  const leads = JSON.parse(localStorage.getItem('sp_leads') || '[]');
+  leads.push({ id: Date.now(), name, email, company, size, date: new Date().toLocaleDateString() });
+  localStorage.setItem('sp_leads', JSON.stringify(leads));
+  
+  // Exibir card de sucesso
+  document.getElementById('requestFormCard').style.display = 'none';
+  document.getElementById('requestSuccessCard').style.display = 'block';
+  
+  // Limpar formulário
+  document.getElementById('leadForm').reset();
+}
 </script>
 </body>
 </html>

@@ -46,6 +46,18 @@
   </div>
 </div>
 
+<!-- Modal de Simulação de Envio de E-mail -->
+<div class="modal-overlay" id="emailModal" style="z-index: 1000; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; position: fixed; top: 0; left: 0; right: 0; bottom: 0;">
+  <div class="modal" style="max-width: 440px; text-align: center; padding: 30px; border-radius: var(--radius); background: var(--white); border: 1.5px solid var(--border);">
+    <div style="font-size: 40px; margin-bottom: 16px;">✉️</div>
+    <h3 style="font-size: 18px; font-weight: 800; color: var(--primary); margin-bottom: 10px;">Simulação de Envio de E-mail</h3>
+    <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;" id="emailModalText"></p>
+    <div style="background: #f1f5f9; border-radius: 8px; padding: 16px; text-align: left; font-size: 12.5px; border-left: 4px solid var(--accent); margin-bottom: 24px; line-height: 1.5;" id="emailModalContent">
+    </div>
+    <button class="btn btn-primary" style="width: 100%; justify-content: center;" onclick="closeEmailModal()">Confirmar e Fechar</button>
+  </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', () => {
   renderTopbar('Solicitações de Acesso', 'Usuários aguardando aprovação');
@@ -109,7 +121,7 @@ function aprovar(id) {
 
 function recusar(id) {
   updateStatus([id], 'recusado');
-  toast('Usuário recusado. E-mail enviado.', 'error');
+  toast('Usuário recusado. E-mail de notificação enviado.', 'error');
 }
 
 function aprovarSelecionados() {
@@ -123,22 +135,47 @@ function recusarSelecionados() {
   const ids = getSelected();
   if (!ids.length) { toast('Selecione ao menos um usuário', 'warning'); return; }
   updateStatus(ids, 'recusado');
-  toast(`${ids.length} usuário(s) recusado(s). E-mails enviados.`, 'error');
+  toast(`${ids.length} usuário(s) recusado(s).`, 'error');
+}
+
+function closeEmailModal() {
+  document.getElementById('emailModal').style.display = 'none';
 }
 
 function updateStatus(ids, status) {
   const users = DB.get('users');
+  const approvedUsers = [];
   ids.forEach(id => {
     const u = users.find(x=>x.id===id);
     if (u) {
       u.status = status;
       logAudit(status==='ativo'?'Usuário aprovado':'Usuário recusado', u.name);
       addNotification(`Usuário ${u.name} foi ${status==='ativo'?'aprovado':'recusado'}`);
+      if (status === 'ativo') {
+        approvedUsers.push(u);
+      }
     }
   });
   DB.set('users', users);
   render();
-  renderSidebar();
+  if (typeof renderSidebar === 'function') renderSidebar();
+
+  if (approvedUsers.length > 0) {
+    const names = approvedUsers.map(u => u.name).join(', ');
+    const emails = approvedUsers.map(u => u.email).join(', ');
+    
+    document.getElementById('emailModalText').textContent = `Enviando e-mail para: ${emails}`;
+    document.getElementById('emailModalContent').innerHTML = `
+      <strong>De:</strong> nao-responder@pontoeletronico.com.br<br>
+      <strong>Para:</strong> ${emails}<br>
+      <strong>Assunto:</strong> Seu cadastro no Ponto Eletrônico foi aprovado!<br><br>
+      Olá, <strong>${names}</strong>!<br><br>
+      Informamos que a sua solicitação de acesso ao sistema <strong>Ponto Eletrônico</strong> foi analisada e <strong>aprovada</strong> com sucesso pelo administrador.<br><br>
+      Você já pode realizar o login com seu e-mail cadastrado e a senha definida no momento do cadastro.<br><br>
+      <a href="/pages/login/index.html" style="color:var(--accent); font-weight:700; text-decoration:none; display:inline-block; margin-top:8px;">👉 Clique aqui para acessar o sistema</a>
+    `;
+    document.getElementById('emailModal').style.display = 'flex';
+  }
 }
 </script>
 </body>
