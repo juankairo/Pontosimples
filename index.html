@@ -497,44 +497,8 @@
 </footer>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-  // Ajustar botões de CTA dependendo do estado de login
-  try {
-    const user = JSON.parse(localStorage.getItem('sp_currentUser'));
-    if (user) {
-      const ctaNavBtn = document.getElementById('ctaNavBtn');
-      const ctaBottomBtn = document.getElementById('ctaBottomBtn');
-      const heroRegisterBtn = document.getElementById('heroRegisterBtn');
-      
-      if (ctaNavBtn) {
-        ctaNavBtn.textContent = 'Ir para o Painel';
-        ctaNavBtn.href = '/pages/adm/dashboard.html';
-      }
-      if (ctaBottomBtn) {
-        ctaBottomBtn.textContent = 'Acessar Painel';
-        ctaBottomBtn.removeAttribute('onclick');
-        ctaBottomBtn.onclick = () => { window.location.href = '/pages/adm/dashboard.html'; };
-      }
-      if (heroRegisterBtn) {
-        heroRegisterBtn.textContent = 'Acessar Meu Painel';
-        heroRegisterBtn.removeAttribute('onclick');
-        heroRegisterBtn.onclick = () => { window.location.href = '/pages/adm/dashboard.html'; };
-      }
-    }
-  } catch (e) {}
-});
-
 function openRequestModal(e) {
   if (e) e.preventDefault();
-  
-  // Se logado, ir para o painel
-  try {
-    const user = JSON.parse(localStorage.getItem('sp_currentUser'));
-    if (user) {
-      window.location.href = '/pages/adm/dashboard.html';
-      return;
-    }
-  } catch (e) {}
 
   document.getElementById('requestModal').style.display = 'flex';
   document.getElementById('requestFormCard').style.display = 'block';

@@ -73,18 +73,12 @@ function checkAnnouncements() {
   const announcements = DB.get('announcements') || [];
   const read = JSON.parse(localStorage.getItem('sp_read_announcements_' + currentUser.id) || '[]');
   
-  // Filtrar avisos direcionados para o usuário atual
+  // Filtrar avisos direcionados para o usuário atual (filtro individual por funcionário)
   const matching = announcements.filter(a => {
     if (read.includes(a.id)) return false;
     
-    // Filtro de Perfil
-    if (a.targetRole !== 'all' && a.targetRole !== currentUser.role) return false;
-    
-    // Filtro de Setor
-    if (a.targetSectorId) {
-      const userSectors = currentUser.sectors || (currentUser.sectorId ? [currentUser.sectorId] : []);
-      if (!userSectors.includes(a.targetSectorId)) return false;
-    }
+    // Verifica se o id do usuário logado está na lista de destinatários do aviso
+    if (!a.userIds || !a.userIds.includes(currentUser.id)) return false;
     
     return true;
   });

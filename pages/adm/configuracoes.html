@@ -15,9 +15,9 @@
   <div class="grid-2" style="align-items:start">
     <!-- COLUNA ESQUERDA -->
     <div>
-      <!-- Criar Aviso -->
+      <!-- Criar Aviso por Funcionário -->
       <div class="panel" style="padding:24px;margin-bottom:20px">
-        <h3 style="font-size:14px;font-weight:700;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--border)">📢 Criar Novo Aviso Geral</h3>
+        <h3 style="font-size:14px;font-weight:700;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--border)">📢 Criar Novo Aviso por Funcionário</h3>
         
         <div class="form-group">
           <label>Título do Aviso *</label>
@@ -30,50 +30,16 @@
         </div>
 
         <div class="form-group">
-          <label>Filtro de Perfil de Acesso</label>
-          <select class="form-control" id="sAvisoPerfil">
-            <option value="all">Todos os Perfis</option>
-            <option value="funcionario">Apenas Funcionários</option>
-            <option value="supervisor">Apenas Supervisores</option>
-            <option value="admin">Apenas Administradores</option>
-          </select>
-        </div>
-
-        <div class="form-group">
-          <label>Filtro de Setor</label>
-          <select class="form-control" id="sAvisoSetor">
-            <option value="">Todos os Setores</option>
-          </select>
+          <label>Destinatários (Selecione um ou mais funcionários) *</label>
+          <div id="avisoFuncList" style="display:flex; flex-direction:column; gap:6px; max-height:140px; overflow-y:auto; border:1.5px solid var(--border); border-radius:8px; padding:10px; background:#ffffff;">
+            <!-- Injetado dinamicamente -->
+          </div>
         </div>
 
         <button class="btn btn-primary" onclick="salvarAviso()" style="width:100%; justify-content:center; margin-top:8px;">📢 Publicar Aviso</button>
       </div>
 
-      <!-- Aparência -->
-      <div class="panel" style="padding:24px;margin-bottom:20px">
-        <div class="settings-section">
-          <h3>🎨 Aparência</h3>
-          <div class="form-group"><label>Cor Principal</label>
-            <div class="color-row">
-              <input type="color" id="sCor1" onchange="syncColorHex('sCor1','sCor1Hex')">
-              <input type="text" class="form-control" id="sCor1Hex" placeholder="#0b1d4d" style="flex:1" oninput="syncColorFromText('sCor1','sCor1Hex')">
-              <div class="color-preview" id="prev1"></div>
-            </div>
-          </div>
-          <div class="form-group"><label>Cor Secundária / Destaque</label>
-            <div class="color-row">
-              <input type="color" id="sCor2" onchange="syncColorHex('sCor2','sCor2Hex')">
-              <input type="text" class="form-control" id="sCor2Hex" placeholder="#2563EB" style="flex:1" oninput="syncColorFromText('sCor2','sCor2Hex')">
-              <div class="color-preview" id="prev2"></div>
-            </div>
-          </div>
-          <div class="form-group"><label>Logo do Sistema (URL ou arquivo)</label>
-            <input type="text" class="form-control" id="sLogo" placeholder="URL da imagem...">
-          </div>
-        </div>
-      </div>
-
-      <!-- Tolerâncias -->
+      <!-- Tolerâncias/Regras de Ponto -->
       <div class="panel" style="padding:24px">
         <div class="settings-section">
           <h3>⏱ Regras de Ponto</h3>
@@ -151,59 +117,33 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  renderTopbar('Configurações', 'Personalize as preferências e envie avisos para os usuários');
+  renderTopbar('Configurações', 'Personalize as regras de ponto e envie avisos para os funcionários');
   carregarConfig();
-  fillSectors();
+  fillFuncs();
   renderAvisos();
 });
 
 function carregarConfig() {
   const s = DB.getObj('settings', {});
-  document.getElementById('sLogo').value        = s.logo||'';
-  document.getElementById('sCor1').value        = s.primaryColor||'#0b1d4d';
-  document.getElementById('sCor1Hex').value     = s.primaryColor||'#0b1d4d';
-  document.getElementById('sCor2').value        = s.secondaryColor||'#2563EB';
-  document.getElementById('sCor2Hex').value     = s.secondaryColor||'#2563EB';
   document.getElementById('sTolerancia').value  = s.delayTolerance||'10';
   document.getElementById('sHoraExtra').value   = s.overtimeMinimum||'10';
   document.getElementById('sBanco').value       = s.bankEnabled||'sim';
   document.getElementById('sLimiteExtra').value = s.overtimeLimit||'';
-  
-  document.getElementById('prev1').style.background = s.primaryColor||'#0b1d4d';
-  document.getElementById('prev2').style.background = s.secondaryColor||'#2563EB';
-}
-
-function syncColorHex(colorId, hexId) {
-  const c = document.getElementById(colorId).value;
-  document.getElementById(hexId).value = c;
-  document.getElementById(colorId === 'sCor1' ? 'prev1' : 'prev2').style.background = c;
-}
-
-function syncColorFromText(colorId, hexId) {
-  const val = document.getElementById(hexId).value;
-  if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
-    document.getElementById(colorId).value = val;
-    document.getElementById(colorId === 'sCor1' ? 'prev1' : 'prev2').style.background = val;
-  }
 }
 
 function salvar() {
   const s = {
     systemName:     'Ponto Eletrônico',
     senderEmail:    'noreply@pontoeletronico.com',
-    logo:           document.getElementById('sLogo').value.trim(),
-    primaryColor:   document.getElementById('sCor1').value,
-    secondaryColor: document.getElementById('sCor2').value,
+    primaryColor:   '#0b1d4d',
+    secondaryColor: '#2563EB',
     delayTolerance: document.getElementById('sTolerancia').value,
     overtimeMinimum:document.getElementById('sHoraExtra').value,
     bankEnabled:    document.getElementById('sBanco').value,
     overtimeLimit:  document.getElementById('sLimiteExtra').value,
   };
   DB.setObj('settings', s);
-  document.documentElement.style.setProperty('--primary', s.primaryColor);
-  document.documentElement.style.setProperty('--accent', s.secondaryColor);
-  logAudit('Configurações atualizadas', 'Sistema');
-  toast('Configurações salvas com sucesso!');
+  toast('Configurações de regras de ponto salvas com sucesso!');
 }
 
 function resetarPadrao() {
@@ -221,53 +161,63 @@ function limparDados() {
   setTimeout(()=>location.href='/index.html', 1500);
 }
 
-/* ===================== GERENCIAMENTO DE AVISOS ===================== */
-function fillSectors() {
-  const sel = document.getElementById('sAvisoSetor');
-  sel.innerHTML = '<option value="">Todos os Setores</option>';
-  DB.get('sectors').forEach(s => sel.innerHTML += `<option value="${s.id}">${s.name}</option>`);
+/* ===================== GERENCIAMENTO DE AVISOS POR FUNCIONÁRIO ===================== */
+function fillFuncs() {
+  const list = DB.get('users').filter(u => u.status === 'ativo');
+  document.getElementById('avisoFuncList').innerHTML = list.map(u => `
+    <label class="checkbox-wrap">
+      <input type="checkbox" name="avisoUser" value="${u.id}">
+      ${u.name} (${u.role === 'admin' ? 'Admin' : u.role === 'supervisor' ? 'Supervisor' : 'Funcionário'})
+    </label>`).join('') || '<div style="color:var(--text-muted);font-size:12px;">Nenhum funcionário ativo cadastrado</div>';
 }
 
 function renderAvisos() {
   const list = DB.get('announcements') || [];
+  const users = DB.get('users');
   const listDiv = document.getElementById('avisoList');
-  listDiv.innerHTML = list.length ? list.map(a => `
+  
+  listDiv.innerHTML = list.length ? list.map(a => {
+    // Obter nomes dos destinatários
+    const targetNames = (a.userIds || []).map(id => users.find(u => u.id === id)?.name).filter(Boolean).join(', ');
+    
+    return `
     <div class="list-item" style="padding:12px;border: 1.5px solid var(--border); border-radius: 8px; display:flex;justify-content:space-between;align-items:center;background:#ffffff;">
       <div style="flex:1; padding-right:12px;">
         <div style="font-weight:700;font-size:13.5px;color:var(--primary)">${a.title}</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:2px;">
-          Perfil: ${a.targetRole === 'all' ? 'Todos' : a.targetRole === 'supervisor' ? 'Supervisores' : a.targetRole === 'admin' ? 'Admins' : 'Funcionários'}
-          ${a.targetSectorId ? ' · Setor: ' + getSectorName(a.targetSectorId) : ''}
+          Destinatários: ${targetNames || 'Nenhum'}
         </div>
         <div style="font-size:12px;color:var(--text);margin-top:6px;line-height:1.4;">${a.content.substring(0, 60)}${a.content.length > 60 ? '...' : ''}</div>
       </div>
       <button class="btn btn-danger btn-sm" onclick="excluirAviso(${a.id})" style="padding:6px 10px; flex-shrink:0;">🗑</button>
-    </div>`).join('') : '<div class="empty-state" style="padding:20px; border: 1.5px dashed var(--border); border-radius: 8px;"><p>Nenhum aviso ativo</p></div>';
+    </div>`;
+  }).join('') : '<div class="empty-state" style="padding:20px; border: 1.5px dashed var(--border); border-radius: 8px;"><p>Nenhum aviso ativo</p></div>';
 }
 
 function salvarAviso() {
   const title = document.getElementById('avisoTitulo').value.trim();
   const content = document.getElementById('avisoConteudo').value.trim();
-  const targetRole = document.getElementById('sAvisoPerfil').value;
-  const targetSectorId = parseInt(document.getElementById('sAvisoSetor').value) || null;
+  const userIds = [...document.querySelectorAll('input[name=avisoUser]:checked')].map(c => parseInt(c.value));
   
   if (!title || !content) { toast('Preencha título e conteúdo do aviso', 'warning'); return; }
+  if (!userIds.length) { toast('Selecione pelo menos um funcionário destinatário', 'warning'); return; }
   
   const list = DB.get('announcements') || [];
   list.unshift({
     id: Date.now(),
     title,
     content,
-    targetRole,
-    targetSectorId,
+    userIds,
     date: new Date().toLocaleDateString('pt-BR')
   });
   
   DB.set('announcements', list);
   toast('Aviso publicado com sucesso!');
   
+  // Limpar campos
   document.getElementById('avisoTitulo').value = '';
   document.getElementById('avisoConteudo').value = '';
+  document.querySelectorAll('input[name=avisoUser]').forEach(c => c.checked = false);
   
   renderAvisos();
 }
