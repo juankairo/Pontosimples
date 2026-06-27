@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/assets/css/cadastro.css">
+    <title>Cadastro - Stylle Ponto</title>
+    <!-- Route Guard e DB Helpers -->
+    <script src="/assets/js/app.js"></script>
+    <style>
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #333;
+        color: #fff;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-family: sans-serif;
+        font-size: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.3s, transform 0.3s;
+        z-index: 1000;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .toast-success { background: #16a34a; }
+      .toast-warning { background: #d97706; }
+      .toast-error { background: #dc2626; }
+    </style>
+  </head>
+  <body>
+    <section>
+      <header>
+        <img src="/assets/icons/logo.svg" alt="logo relogio" style="width: 48px; height: 48px;" />
+        <h1>Criar nova conta</h1>
+        <p>Preencha os dados abaixo para se cadastrar</p>
+      </header>
+      <div class="form">
+        <form id="cadastroForm" onsubmit="handleCadastro(event)">
+          <div class="nome">
+            <label for="nameInput">Nome completo</label>
+            <input type="text" id="nameInput" placeholder="Seu nome completo" required />
+          </div>
+          <div class="email">
+            <label for="emailInput">Email</label>
+            <input type="email" id="emailInput" placeholder="seu@gmail.com" required />
+          </div>
+          <div class="senha">
+            <div class="senha-1">
+              <label for="passwordInput">Senha</label>
+              <input type="password" id="passwordInput" placeholder="Min. 6 caracteres" required />
+            </div>
+            <div class="senha-2">
+              <label for="confirmInput">Confirmar</label>
+              <input type="password" id="confirmInput" placeholder="Repita a senha" required />
+            </div>
+          </div>
+          <button type="submit">Criar conta</button>
+        </form>
+      </div>
+      <footer>
+        <p>
+          Já tem conta?<a href="/pages/login/index.html"> Voltar ao login</a>
+        </p>
+      </footer>
+    </section>
+
+    <script>
+      function handleCadastro(event) {
+        event.preventDefault();
+
+        const name = document.getElementById('nameInput').value.trim();
+        const email = document.getElementById('emailInput').value.trim();
+        const password = document.getElementById('passwordInput').value;
+        const confirmPassword = document.getElementById('confirmInput').value;
+
+        // Validações
+        if (name.length < 3) {
+          toast('Por favor, insira seu nome completo.', 'warning');
+          return;
+        }
+
+        if (!email || !email.includes('@')) {
+          toast('Por favor, insira um e-mail válido.', 'warning');
+          return;
+        }
+
+        if (password.length < 6) {
+          toast('A senha deve conter no mínimo 6 caracteres.', 'warning');
+          return;
+        }
+
+        if (password !== confirmPassword) {
+          toast('As senhas não coincidem.', 'error');
+          return;
+        }
+
+        const users = DB.get('users');
+        const exists = users.some(u => u.email.toLowerCase() === email.toLowerCase());
+
+        if (exists) {
+          toast('Este e-mail já está cadastrado no sistema.', 'error');
+          return;
+        }
+
+        // Criar o novo usuário pendente
+        const newUser = {
+          id: nextId(users),
+          name: name,
+          email: email,
+          password: password,
+          role: 'funcionario',
+          status: 'pendente',
+          createdAt: new Date().toISOString().split('T')[0]
+        };
+
+        users.push(newUser);
+        DB.set('users', users);
+
+        // Adicionar uma notificação para o administrador
+        addNotification(`Nova solicitação de acesso de ${name}`);
+
+        toast('Cadastro solicitado com sucesso! Aguarde aprovação.', 'success');
+
+        setTimeout(() => {
+          window.location.href = '/pages/login/index.html';
+        }, 1500);
+      }
+    </script>
+  </body>
+</html>

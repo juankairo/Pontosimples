@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solicitações - Stylle Ponto</title>
+<link rel="stylesheet" href="/assets/css/styles.css">
+<script src="/assets/js/app.js"></script>
+</head>
+<body>
+<div id="sidebar-container"></div>
+<div class="main-content">
+  <div id="topbar-container"></div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Solicitações de Acesso</h2>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-success btn-sm" onclick="aprovarSelecionados()">✔ Aprovar Selecionados</button>
+        <button class="btn btn-danger btn-sm" onclick="recusarSelecionados()">✖ Recusar Selecionados</button>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th><label class="checkbox-wrap"><input type="checkbox" id="selectAll" onchange="toggleAll(this)"></label></th>
+          <th>Nome</th><th>E-mail</th><th>Data</th><th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+    <div id="emptyState" class="empty-state" style="display:none">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <p>Nenhuma solicitação pendente</p>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header"><h2>Histórico de Solicitações</h2></div>
+    <table>
+      <thead>
+        <tr><th>Nome</th><th>E-mail</th><th>Data Cadastro</th><th>Status</th></tr>
+      </thead>
+      <tbody id="histBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  renderTopbar('Solicitações de Acesso', 'Usuários aguardando aprovação');
+  render();
+});
+
+function render() {
+  const users = DB.get('users');
+  const pending = users.filter(u=>u.status==='pendente');
+  const hist = users.filter(u=>['ativo','recusado'].includes(u.status));
+
+  if (!pending.length) {
+    document.querySelector('table').style.display='none';
+    document.getElementById('emptyState').style.display='block';
+  } else {
+    document.querySelector('table').style.display='table';
+    document.getElementById('emptyState').style.display='none';
+  }
+
+  document.getElementById('tableBody').innerHTML = pending.map(u=>`
+    <tr>
+      <td><label class="checkbox-wrap"><input type="checkbox" class="sel-check" value="${u.id}"></label></td>
+      <td><div class="employee">
+        <div class="avatar avatar-md">${avatar(u.name)}</div>
+        <div class="emp-name">${u.name}</div>
+      </div></td>
+      <td>${u.email}</td>
+      <td>${fmtDate(u.createdAt)}</td>
+      <td>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-success btn-sm" onclick="aprovar(${u.id})">✔ Aceitar</button>
+          <button class="btn btn-danger btn-sm" onclick="recusar(${u.id})">✖ Recusar</button>
+        </div>
+      </td>
+    </tr>`).join('');
+
+  document.getElementById('histBody').innerHTML = hist.map(u=>`
+    <tr>
+      <td><div class="employee">
+        <div class="avatar avatar-md">${avatar(u.name)}</div>
+        <div class="emp-name">${u.name}</div>
+      </div></td>
+      <td>${u.email}</td>
+      <td>${fmtDate(u.createdAt)}</td>
+      <td><span class="status-badge ${u.status==='ativo'?'status-ativo':'status-inativo'}">${u.status==='ativo'?'Aprovado':'Recusado'}</span></td>
+    </tr>`).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-muted);padding:20px">Nenhum histórico</td></tr>';
+}
+
+function toggleAll(cb) {
+  document.querySelectorAll('.sel-check').forEach(c=>c.checked=cb.checked);
+}
+
+function getSelected() {
+  return [...document.querySelectorAll('.sel-check:checked')].map(c=>parseInt(c.value));
+}
+
+function aprovar(id) {
+  updateStatus([id], 'ativo');
+  toast('Usuário aprovado! E-mail enviado.', 'success');
+}
+
+function recusar(id) {
+  updateStatus([id], 'recusado');
+  toast('Usuário recusado. E-mail enviado.', 'error');
+}
+
+function aprovarSelecionados() {
+  const ids = getSelected();
+  if (!ids.length) { toast('Selecione ao menos um usuário', 'warning'); return; }
+  updateStatus(ids, 'ativo');
+  toast(`${ids.length} usuário(s) aprovado(s)! E-mails enviados.`, 'success');
+}
+
+function recusarSelecionados() {
+  const ids = getSelected();
+  if (!ids.length) { toast('Selecione ao menos um usuário', 'warning'); return; }
+  updateStatus(ids, 'recusado');
+  toast(`${ids.length} usuário(s) recusado(s). E-mails enviados.`, 'error');
+}
+
+function updateStatus(ids, status) {
+  const users = DB.get('users');
+  ids.forEach(id => {
+    const u = users.find(x=>x.id===id);
+    if (u) {
+      u.status = status;
+      logAudit(status==='ativo'?'Usuário aprovado':'Usuário recusado', u.name);
+      addNotification(`Usuário ${u.name} foi ${status==='ativo'?'aprovado':'recusado'}`);
+    }
+  });
+  DB.set('users', users);
+  render();
+  renderSidebar();
+}
+</script>
+</body>
+</html>

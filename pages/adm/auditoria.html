@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Auditoria - Stylle Ponto</title>
+<link rel="stylesheet" href="/assets/css/styles.css">
+<script src="/assets/js/app.js"></script>
+</head>
+<body>
+<div id="sidebar-container"></div>
+<div class="main-content">
+  <div id="topbar-container"></div>
+
+  <div class="filter-bar">
+    <div class="form-group">
+      <label>Usuário</label>
+      <select class="form-control" id="fUser" style="width:180px" onchange="render()">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Ação</label>
+      <input type="text" class="form-control" id="fAcao" placeholder="Filtrar por ação..." oninput="render()" style="width:200px">
+    </div>
+    <div class="form-group">
+      <label>Data Inicial</label>
+      <input type="date" class="form-control" id="fDtI" onchange="render()" style="width:145px">
+    </div>
+    <div class="form-group">
+      <label>Data Final</label>
+      <input type="date" class="form-control" id="fDtF" onchange="render()" style="width:145px">
+    </div>
+    <button class="btn btn-ghost" onclick="limparFiltros()">✖ Limpar</button>
+    <button class="btn btn-primary" onclick="exportar()">📄 Exportar</button>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <h2>Log de Auditoria</h2>
+      <span id="count"></span>
+    </div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Data</th>
+            <th>Hora</th>
+            <th>Usuário</th>
+            <th>Ação</th>
+            <th>Registro Afetado</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div id="emptyState" class="empty-state" style="display:none;padding:40px">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      <p>Nenhum registro encontrado com os filtros aplicados</p>
+    </div>
+  </div>
+
+  <!-- Resumo -->
+  <div class="stats" id="resumo" style="margin-top:0"></div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  renderTopbar('Auditoria', 'Rastreamento completo de ações no sistema');
+  fillUsers();
+  render();
+});
+
+function fillUsers() {
+  const sel = document.getElementById('fUser');
+  const users = DB.get('users').filter(u=>u.status==='ativo');
+  users.forEach(u => sel.innerHTML += `<option value="${u.name}">${u.name}</option>`);
+}
+
+function render() {
+  let list = DB.get('audit');
+  const fUser = document.getElementById('fUser').value;
+  const fAcao = (document.getElementById('fAcao').value||'').toLowerCase();
+  const fDtI  = document.getElementById('fDtI').value;
+  const fDtF  = document.getElementById('fDtF').value;
+
+  if (fUser) list = list.filter(a=>a.user===fUser);
+  if (fAcao) list = list.filter(a=>a.action.toLowerCase().includes(fAcao)||a.record.toLowerCase().includes(fAcao));
+
+  document.getElementById('count').textContent = list.length + ' registros';
+
+  const actionIcon = (a) => {
+    if (a.includes('Login')) return '🔑';
+    if (a.includes('criado')||a.includes('cadastr')) return '✅';
+    if (a.includes('editad')||a.includes('atualiz')) return '✏️';
+    if (a.includes('excluíd')||a.includes('remov')) return '🗑️';
+    if (a.includes('aprovad')) return '✔️';
+    if (a.includes('recusad')) return '❌';
+    return '📋';
+  };
+
+  const rows = list.slice(0, 200);
+  document.getElementById('tableBody').innerHTML = rows.length ? rows.map((a,i)=>`
+    <tr>
+      <td style="color:var(--text-muted);font-size:12px">${i+1}</td>
+      <td style="white-space:nowrap">${a.date}</td>
+      <td style="white-space:nowrap;color:var(--text-muted)">${a.time}</td>
+      <td><div class="employee">
+        <div class="avatar avatar-xs">${avatar(a.user)}</div>
+        <span style="font-size:13px">${a.user}</span>
+      </div></td>
+      <td>${actionIcon(a.action)} ${a.action}</td>
+      <td style="color:var(--text-muted);font-size:12.5px">${a.record}</td>
+    </tr>`).join('') : '';
+
+  document.getElementById('tableBody').style.display = rows.length?'':'none';
+  document.getElementById('emptyState').style.display = rows.length?'none':'block';
+
+  // Resumo cards
+  const total = list.length;
+  const edits = list.filter(a=>a.action.toLowerCase().includes('edita')||a.action.toLowerCase().includes('atualiz')).length;
+  const creates = list.filter(a=>a.action.toLowerCase().includes('criado')||a.action.toLowerCase().includes('cadastr')).length;
+  const deletes = list.filter(a=>a.action.toLowerCase().includes('excluí')).length;
+  document.getElementById('resumo').innerHTML = `
+    <div class="stat-card"><div class="stat-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/></svg></div><div class="stat-value">${total}</div><div class="stat-title">Total de Ações</div></div>
+    <div class="stat-card"><div class="stat-icon green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg></div><div class="stat-value">${creates}</div><div class="stat-title">Criações</div></div>
+    <div class="stat-card"><div class="stat-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div><div class="stat-value">${edits}</div><div class="stat-title">Edições</div></div>
+    <div class="stat-card"><div class="stat-icon red"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></div><div class="stat-value">${deletes}</div><div class="stat-title">Exclusões</div></div>
+  `;
+}
+
+function limparFiltros() {
+  ['fUser','fDtI','fDtF'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('fAcao').value='';
+  render();
+}
+
+function exportar() {
+  const list = DB.get('audit');
+  let csv = 'Data,Hora,Usuário,Ação,Registro\n';
+  list.forEach(a => csv += `"${a.date}","${a.time}","${a.user}","${a.action}","${a.record}"\n`);
+  const blob = new Blob([csv],{type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download='auditoria.csv'; a.click();
+  URL.revokeObjectURL(url);
+  toast('Exportado com sucesso!');
+}
+</script>
+</body>
+</html>

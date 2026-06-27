@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Feriados - Stylle Ponto</title>
+<link rel="stylesheet" href="/assets/css/styles.css">
+<script src="/assets/js/app.js"></script>
+</head>
+<body>
+<div id="sidebar-container"></div>
+<div class="main-content">
+  <div id="topbar-container"></div>
+
+  <div class="cadastro-split">
+    <!-- FORMULÁRIO -->
+    <div>
+      <div class="panel" style="padding:22px;margin-bottom:16px">
+        <h3 style="font-size:15px;font-weight:700;margin-bottom:16px" id="formTitle">Novo Feriado</h3>
+        <input type="hidden" id="editId">
+        <div class="form-group"><label>Data *</label>
+          <input type="date" class="form-control" id="inputData">
+        </div>
+        <div class="form-group"><label>Nome do Feriado *</label>
+          <input type="text" class="form-control" id="inputNome" placeholder="Ex: Dia do Trabalho">
+        </div>
+        <div class="form-group"><label>Tipo</label>
+          <select class="form-control" id="inputTipo">
+            <option value="nacional">Nacional</option>
+            <option value="estadual">Estadual</option>
+            <option value="municipal">Municipal</option>
+            <option value="empresa">Por Empresa</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Empresa (opcional)</label>
+          <select class="form-control" id="inputEmpresa">
+            <option value="">Todas as empresas</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary" onclick="salvar()" style="flex:1">💾 Salvar</button>
+          <button class="btn btn-ghost" onclick="limpar()">✖</button>
+        </div>
+      </div>
+
+      <div class="panel" style="padding:16px">
+        <div style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:10px">🇧🇷 FERIADOS NACIONAIS 2026</div>
+        <div style="display:flex;flex-direction:column;gap:4px;font-size:12.5px">
+          <div style="display:flex;justify-content:space-between"><span>01/01</span><span>Confraternização Universal</span></div>
+          <div style="display:flex;justify-content:space-between"><span>16/02</span><span>Carnaval</span></div>
+          <div style="display:flex;justify-content:space-between"><span>03/04</span><span>Paixão de Cristo</span></div>
+          <div style="display:flex;justify-content:space-between"><span>21/04</span><span>Tiradentes</span></div>
+          <div style="display:flex;justify-content:space-between"><span>01/05</span><span>Dia do Trabalho</span></div>
+          <div style="display:flex;justify-content:space-between"><span>04/06</span><span>Corpus Christi</span></div>
+          <div style="display:flex;justify-content:space-between"><span>07/09</span><span>Independência</span></div>
+          <div style="display:flex;justify-content:space-between"><span>12/10</span><span>N. Sra. Aparecida</span></div>
+          <div style="display:flex;justify-content:space-between"><span>02/11</span><span>Finados</span></div>
+          <div style="display:flex;justify-content:space-between"><span>15/11</span><span>Proclamação da República</span></div>
+          <div style="display:flex;justify-content:space-between"><span>25/12</span><span>Natal</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LISTA -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Feriados Cadastrados</h2>
+        <span id="count"></span>
+      </div>
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:8px">
+        <input type="text" class="form-control" id="search" placeholder="Pesquisar..." oninput="render()" style="flex:1">
+        <select class="form-control" id="fTipo" onchange="render()" style="width:130px">
+          <option value="">Todos tipos</option>
+          <option value="nacional">Nacional</option>
+          <option value="estadual">Estadual</option>
+          <option value="municipal">Municipal</option>
+          <option value="empresa">Por Empresa</option>
+        </select>
+      </div>
+      <div id="listWrap" style="max-height:600px;overflow-y:auto"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  renderTopbar('Feriados', 'Calendário de feriados');
+  fillEmpresas();
+  render();
+});
+
+function fillEmpresas() {
+  const sel = document.getElementById('inputEmpresa');
+  DB.get('companies').forEach(c => sel.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+}
+
+function render() {
+  const q = (document.getElementById('search').value||'').toLowerCase();
+  const tipo = document.getElementById('fTipo').value;
+  const list = DB.get('holidays')
+    .filter(h => (!q || h.name.toLowerCase().includes(q) || h.date.includes(q)) && (!tipo || (h.tipo||'nacional')===tipo))
+    .sort((a,b)=>a.date.localeCompare(b.date));
+
+  document.getElementById('count').textContent = list.length + ' feriados';
+
+  const tipoLabel = {nacional:'🇧🇷 Nacional', estadual:'📍 Estadual', municipal:'🏙 Municipal', empresa:'🏢 Empresa'};
+  const tipoColor = {nacional:'var(--info)', estadual:'var(--purple)', municipal:'var(--warning)', empresa:'var(--success)'};
+
+  document.getElementById('listWrap').innerHTML = list.length ? list.map(h=>`
+    <div class="list-item">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-weight:700;color:var(--accent);min-width:72px">${fmtDate(h.date)}</span>
+          <span style="font-weight:600">${h.name}</span>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <span style="font-size:11px;font-weight:600;color:${tipoColor[h.tipo||'nacional']}">${tipoLabel[h.tipo||'nacional']}</span>
+          ${h.companyId?`<span style="font-size:11px;color:var(--text-muted)">${getCompanyName(h.companyId)}</span>`:''}
+        </div>
+      </div>
+      <div class="list-item-actions">
+        <button class="btn btn-ghost btn-sm" onclick="editar(${h.id})">✏</button>
+        <button class="btn btn-danger btn-sm" onclick="excluir(${h.id})">🗑</button>
+      </div>
+    </div>`).join('') : '<div class="empty-state" style="padding:32px"><p>Nenhum feriado encontrado</p></div>';
+}
+
+function salvar() {
+  const data  = document.getElementById('inputData').value;
+  const nome  = document.getElementById('inputNome').value.trim();
+  const tipo  = document.getElementById('inputTipo').value;
+  const companyId = parseInt(document.getElementById('inputEmpresa').value)||null;
+  if (!data||!nome) { toast('Preencha data e nome','warning'); return; }
+
+  const list = DB.get('holidays');
+  const id = parseInt(document.getElementById('editId').value)||null;
+  if (id) {
+    const idx = list.findIndex(h=>h.id===id);
+    if (idx>-1) list[idx]={...list[idx],date:data,name:nome,tipo,companyId};
+    logAudit('Feriado editado', nome); toast('Feriado atualizado!');
+  } else {
+    list.push({id:nextId(list),date:data,name:nome,tipo,companyId});
+    logAudit('Feriado criado', nome); toast('Feriado cadastrado!');
+  }
+  DB.set('holidays',list); limpar(); render();
+}
+
+function editar(id) {
+  const h=DB.get('holidays').find(x=>x.id===id); if(!h) return;
+  document.getElementById('editId').value=id;
+  document.getElementById('inputData').value=h.date;
+  document.getElementById('inputNome').value=h.name;
+  document.getElementById('inputTipo').value=h.tipo||'nacional';
+  document.getElementById('inputEmpresa').value=h.companyId||'';
+  document.getElementById('formTitle').textContent='Editar Feriado';
+}
+
+function excluir(id) {
+  const h=DB.get('holidays').find(x=>x.id===id);
+  if(!confirm(`Excluir "${h?.name}"?`)) return;
+  DB.set('holidays',DB.get('holidays').filter(x=>x.id!==id));
+  logAudit('Feriado excluído',h?.name||''); toast('Feriado excluído','error'); render();
+}
+
+function limpar() {
+  ['editId','inputData','inputNome'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('inputTipo').value='nacional';
+  document.getElementById('inputEmpresa').value='';
+  document.getElementById('formTitle').textContent='Novo Feriado';
+}
+</script>
+</body>
+</html>

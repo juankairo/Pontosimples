@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard - Stylle Ponto</title>
+<link rel="stylesheet" href="/assets/css/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="/assets/js/app.js"></script>
+</head>
+<body>
+<div id="sidebar-container"></div>
+<div class="main-content">
+  <div id="topbar-container"></div>
+
+  <div class="stats" id="statsRow"></div>
+
+  <div class="charts-row">
+    <div class="panel">
+      <div class="panel-header"><h2>Horas Extras por Empresa</h2></div>
+      <div class="chart-wrap"><canvas id="chartEmpresas"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><h2>Presenças e Faltas do Mês</h2></div>
+      <div class="chart-wrap"><canvas id="chartFreq"></canvas></div>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-bottom:20px">
+    <div class="panel-header"><h2>Registros Recentes</h2><span id="recCount"></span></div>
+    <table>
+      <thead>
+        <tr><th>Funcionário</th><th>Data</th><th>Entrada</th><th>Saída</th><th>Horas</th><th>Extra</th><th>Status</th></tr>
+      </thead>
+      <tbody id="recBody"></tbody>
+    </table>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header"><h2>Usuários do Sistema</h2><span id="usersCount"></span></div>
+    <div class="users-grid" id="usersGrid"></div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const user = getCurrentUser() || { name: 'Usuário' };
+  renderTopbar('Dashboard', 'Bem-vindo, ' + user.name);
+  buildStats();
+  buildRecords();
+  buildUsers();
+  buildCharts();
+});
+
+function buildStats() {
+  const currentUser = getCurrentUser() || { role: 'funcionario', id: 1 };
+  const users = DB.get('users');
+  const bank = DB.get('bank');
+  const records = DB.get('records');
+  const fullMe = users.find(u => u.id === currentUser.id) || currentUser;
+
+  let activeUsersList = users;
+  let bankList = bank;
+
+  if (currentUser.role === 'supervisor') {
+    const sectorId = fullMe.sectorId;
+    activeUsersList = users.filter(u => u.sectorId === sectorId);
+    const teamIds = activeUsersList.map(u => u.id);
+    bankList = bank.filter(b => teamIds.includes(b.userId));
+  } else if (currentUser.role === 'funcionario') {
+    activeUsersList = users.filter(u => u.sectorId === fullMe.sectorId);
+    bankList = bank.filter(b => b.userId === currentUser.id);
+  }
+
+  const ativos = activeUsersList.filter(u=>u.status==='ativo').length;
+  const pendentes = users.filter(u=>u.status==='pendente').length;
+
+  // total overtime in minutes
+  let totalOvMin = 0;
+  bankList.filter(b=>b.type==='Hora Extra').forEach(b=>{
+    const m = b.hours.replace(/[+\-h]/g,':').split(':');
+    totalOvMin += (parseInt(m[1]||0)*60)+(parseInt(m[2]||0));
+  });
+  const ovH = Math.floor(totalOvMin/60), ovM = totalOvMin%60;
+  const ovStr = `${ovH}h${ovM.toString().padStart(2,'0')}`;
+
+  let card1, card2, card3;
+
+  if (currentUser.role === 'funcionario') {
+    card1 = statCard('Minha Equipe', ativos + ' ativos', 'Colegas no setor', 'blue', '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/><circle cx="17.5" cy="8.5" r="2.7"/><path d="M16 13.7c2.7.3 4.8 2.7 4.8 5.6"/>');
+    card2 = statCard('Minhas Horas Extras', ovStr, 'Acumulado pessoal', 'green', '<path d="M3 17l5-5 4 4 8-9"/><path d="M16 6h4v4"/>');
+    card3 = statCard('Registrar Ponto', 'Bater Ponto', 'Ir para Cartão de Ponto', 'orange', '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>', 'location.href="/pages/adm/cartao-ponto.html"');
+  } else if (currentUser.role === 'supervisor') {
+    card1 = statCard('Equipe Ativa', ativos, 'Funcionários no setor', 'blue', '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/><circle cx="17.5" cy="8.5" r="2.7"/><path d="M16 13.7c2.7.3 4.8 2.7 4.8 5.6"/>');
+    card2 = statCard('Extras da Equipe', ovStr, 'Acumulado do setor', 'green', '<path d="M3 17l5-5 4 4 8-9"/><path d="M16 6h4v4"/>');
+    card3 = statCard('Setor Responsável', getSectorName(fullMe.sectorId), getCompanyName(fullMe.companyId), 'orange', '<rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"/>');
+  } else {
+    card1 = statCard('Usuários Ativos', ativos, 'Total cadastrado', 'blue', '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5"/><circle cx="17.5" cy="8.5" r="2.7"/><path d="M16 13.7c2.7.3 4.8 2.7 4.8 5.6"/>');
+    card2 = statCard('Horas Extras Totais', ovStr, 'Acumuladas aprovadas', 'green', '<path d="M3 17l5-5 4 4 8-9"/><path d="M16 6h4v4"/>');
+    card3 = statCard('Solicitações Pendentes', pendentes, 'Aguardando aprovação', 'orange', '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/>');
+  }
+
+  document.getElementById('statsRow').innerHTML = card1 + card2 + card3;
+}
+
+function statCard(title, val, sub, color, icon, onclick='') {
+  return `<div class="stat-card" ${onclick ? `onclick="${onclick}" style="cursor:pointer;"` : ''}>
+    <div class="stat-icon ${color==='green'?'green':color==='orange'?'orange':color==='red'?'red':color==='purple'?'purple':''}">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${icon}</svg>
+    </div>
+    <div class="stat-value">${val}</div>
+    <div class="stat-title">${title}</div>
+    <div class="stat-sub">${sub}</div>
+  </div>`;
+}
+
+function buildRecords() {
+  const currentUser = getCurrentUser() || { role: 'funcionario', id: 1 };
+  const records = DB.get('records');
+  const users = DB.get('users');
+  const fullMe = users.find(u => u.id === currentUser.id) || currentUser;
+
+  let filteredRecs = records;
+  if (currentUser.role === 'supervisor') {
+    const teamIds = users.filter(u => u.sectorId === fullMe.sectorId).map(u => u.id);
+    filteredRecs = records.filter(r => teamIds.includes(r.userId));
+  } else if (currentUser.role === 'funcionario') {
+    filteredRecs = records.filter(r => r.userId === currentUser.id);
+  }
+
+  const sorted = [...filteredRecs].sort((a,b)=>b.date.localeCompare(a.date));
+  document.getElementById('recCount').textContent = filteredRecs.length + ' registros';
+  document.getElementById('recBody').innerHTML = sorted.slice(0,8).map(r => {
+    const u = users.find(x=>x.id===r.userId)||{name:'?'};
+    return `<tr>
+      <td><div class="employee">
+        <div class="avatar avatar-xs">${avatar(u.name)}</div>
+        <div><div class="emp-name">${u.name}</div><div class="emp-email">${u.email||''}</div></div>
+      </div></td>
+      <td>${fmtDate(r.date)}</td>
+      <td>${r.in1||'-'}</td>
+      <td>${r.out2||r.out1||'-'}</td>
+      <td><strong>${r.hoursWorked||'-'}</strong></td>
+      <td style="color:${r.overtime&&r.overtime!=='0h00'?'var(--success)':'var(--text-muted)'}">${r.overtime||'-'}</td>
+      <td><span class="status-badge status-${r.status}">${r.status}</span></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" class="empty-state">Nenhum registro</td></tr>';
+}
+
+function buildUsers() {
+  const currentUser = getCurrentUser() || { role: 'funcionario', id: 1 };
+  const users = DB.get('users');
+  const fullMe = users.find(u => u.id === currentUser.id) || currentUser;
+
+  let filteredUsers = users;
+  if (currentUser.role === 'supervisor') {
+    filteredUsers = users.filter(u => u.sectorId === fullMe.sectorId);
+  } else if (currentUser.role === 'funcionario') {
+    filteredUsers = users.filter(u => u.sectorId === fullMe.sectorId);
+  }
+
+  document.getElementById('usersCount').textContent = filteredUsers.length + ' usuários';
+  const roleClass = { admin:'role-admin', supervisor:'role-supervisor', funcionario:'role-funcionario', rh:'role-rh' };
+  const roleLabel = { admin:'Admin', supervisor:'Supervisor', funcionario:'Funcionário', rh:'RH' };
+  document.getElementById('usersGrid').innerHTML = filteredUsers.filter(u=>u.status!=='pendente').map(u=>`
+    <div class="user-card">
+      <div class="user-left">
+        <div class="avatar avatar-md">${avatar(u.name)}</div>
+        <div>
+          <div class="emp-name" style="font-size:13px">${u.name}</div>
+          <div class="emp-email">${u.email}</div>
+        </div>
+      </div>
+      <span class="role-badge ${roleClass[u.role]||''}">${roleLabel[u.role]||u.role}</span>
+    </div>`).join('');
+}
+
+function buildCharts() {
+  const currentUser = getCurrentUser() || { role: 'funcionario', id: 1 };
+  const bank = DB.get('bank');
+  const companies = DB.get('companies');
+  const users = DB.get('users');
+  const fullMe = users.find(u => u.id === currentUser.id) || currentUser;
+
+  let teamIds = users.map(u => u.id);
+  if (currentUser.role === 'supervisor' || currentUser.role === 'funcionario') {
+    teamIds = users.filter(u => u.sectorId === fullMe.sectorId).map(u => u.id);
+  }
+
+  // Overtime per company
+  const ovByComp = {};
+  companies.forEach(c=>ovByComp[c.name]=0);
+  
+  bank.filter(b=>b.type==='Hora Extra' && teamIds.includes(b.userId)).forEach(b=>{
+    const u = users.find(x=>x.id===b.userId);
+    if (u && u.companyId) {
+      const c = companies.find(x=>x.id===u.companyId);
+      if (c) {
+        const m = b.hours.replace(/[+h]/g,':').split(':');
+        ovByComp[c.name] = (ovByComp[c.name]||0) + parseInt(m[1]||0)*60 + parseInt(m[2]||0);
+      }
+    }
+  });
+
+  const canvas1 = document.getElementById('chartEmpresas');
+  if (canvas1) {
+    new Chart(canvas1, {
+      type: 'bar',
+      data: {
+        labels: Object.keys(ovByComp),
+        datasets: [{ label:'Horas Extras (min)', data: Object.values(ovByComp), backgroundColor:'#2563EB', borderRadius:6 }]
+      },
+      options: { responsive:true, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true } } }
+    });
+  }
+
+  // Frequency this month
+  const records = DB.get('records').filter(r => teamIds.includes(r.userId));
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+  const presences = new Array(daysInMonth).fill(0);
+  const absences = new Array(daysInMonth).fill(0);
+  records.forEach(r => {
+    const d = new Date(r.date);
+    if (d.getMonth()===now.getMonth() && d.getFullYear()===now.getFullYear()) {
+      presences[d.getDate()-1]++;
+    }
+  });
+  const labels = Array.from({length:daysInMonth},(_,i)=>i+1);
+  
+  const canvas2 = document.getElementById('chartFreq');
+  if (canvas2) {
+    new Chart(canvas2, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label:'Presenças', data:presences, borderColor:'#16a34a', backgroundColor:'rgba(22,163,74,.1)', fill:true, tension:.4 },
+          { label:'Faltas', data:absences, borderColor:'#dc2626', backgroundColor:'rgba(220,38,38,.1)', fill:true, tension:.4 }
+        ]
+      },
+      options: { responsive:true, plugins:{ legend:{ position:'bottom' } }, scales:{ y:{ beginAtZero:true } } }
+    });
+  }
+}
+</script>
+</body>
+</html>

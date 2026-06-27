@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/assets/css/global.css" />
+    <link rel="stylesheet" href="/assets/css/password.css" />
+    <title>Recuperar Senha - Stylle Ponto</title>
+    <!-- Route Guard e DB Helpers -->
+    <script src="/assets/js/app.js"></script>
+    <style>
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #333;
+        color: #fff;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-family: sans-serif;
+        font-size: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.3s, transform 0.3s;
+        z-index: 1000;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .toast-success { background: #16a34a; }
+      .toast-warning { background: #d97706; }
+      .toast-error { background: #dc2626; }
+    </style>
+  </head>
+  <body>
+    <section>
+      <header>
+        <img class="lock" src="/assets/icons/lock.svg" alt="" style="width: 48px; height: 48px;" />
+        <h1>Recuperar senha</h1>
+        <p>Informe seu email e enviaremos um link de recuperação.</p>
+      </header>
+      <div class="main">
+        <form id="recoveryForm" onsubmit="handleRecovery(event)">
+          <label for="emailInput">Email</label>
+          <input type="email" id="emailInput" placeholder="seu@gmail.com" required />
+          <button type="submit">Enviar link de recuperação</button>
+        </form>
+      </div>
+      <footer>
+        <a href="/pages/login/index.html">&larr; Voltar ao login</a>
+      </footer>
+    </section>
+
+    <script>
+      function handleRecovery(event) {
+        event.preventDefault();
+
+        const email = document.getElementById('emailInput').value.trim();
+
+        if (!email || !email.includes('@')) {
+          toast('Por favor, insira um e-mail válido.', 'warning');
+          return;
+        }
+
+        // Simular envio
+        toast('Link de recuperação enviado com sucesso!', 'success');
+
+        setTimeout(() => {
+          window.location.href = '/pages/login/index.html';
+        }, 1500);
+      }
+    </script>
+  </body>
+</html>

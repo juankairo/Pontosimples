@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banco de Horas - Stylle Ponto</title>
+<link rel="stylesheet" href="/assets/css/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="/assets/js/app.js"></script>
+</head>
+<body>
+<div id="sidebar-container"></div>
+<div class="main-content">
+  <div id="topbar-container"></div>
+
+  <div class="filter-bar">
+    <div class="form-group" id="setorFilterGroup">
+      <label>Setor</label>
+      <select class="form-control" id="fSetor" style="width:180px" onchange="fillFunc()">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <div class="form-group" id="funcFilterGroup">
+      <label>Funcionário</label>
+      <select class="form-control" id="fFunc" style="width:200px">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Período Inicial</label>
+      <input type="date" class="form-control" id="fDtI" style="width:150px">
+    </div>
+    <div class="form-group">
+      <label>Período Final</label>
+      <input type="date" class="form-control" id="fDtF" style="width:150px">
+    </div>
+    <button class="btn btn-primary" onclick="filtrar()">Filtrar</button>
+  </div>
+
+  <div class="bank-summary" id="bankSummary"></div>
+
+  <div class="charts-row" id="chartsRow">
+    <div class="panel">
+      <div class="panel-header"><h2>Evolução do Banco</h2></div>
+      <div class="chart-wrap"><canvas id="chartBanco"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-header"><h2>Saldo por Funcionário</h2></div>
+      <div class="chart-wrap"><canvas id="chartSaldo"></canvas></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header"><h2>Histórico de Movimentações</h2><span id="histCount"></span></div>
+    <table>
+      <thead>
+        <tr><th>Data</th><th>Funcionário</th><th>Empresa</th><th>Tipo</th><th>Horas</th><th>Observação</th></tr>
+      </thead>
+      <tbody id="histBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+let chartBanco, chartSaldo;
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderTopbar('Banco de Horas', 'Controle de saldo de horas');
+  const now = new Date();
+  document.getElementById('fDtI').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+  document.getElementById('fDtF').value = now.toISOString().split('T')[0];
+  
+  const currentUser = getCurrentUser();
+  if (currentUser && currentUser.role === 'funcionario') {
+    // Esconder filtros irrelevantes para Funcionário
+    document.getElementById('setorFilterGroup').style.display = 'none';
+    document.getElementById('funcFilterGroup').style.display = 'none';
+    // Ocultar painel de gráficos para o funcionário comum para simplificar visualização
+    document.getElementById('chartsRow').style.display = 'none';
+  } else {
+    fillSetores();
+  }
+  filtrar();
+});
+
+function fillSetores() {
+  const currentUser = getCurrentUser();
+  const sel = document.getElementById('fSetor');
+  const sectors = DB.get('sectors');
+  
+  if (currentUser && currentUser.role === 'supervisor') {
+    // O supervisor só vê o seu próprio setor
+    const users = DB.get('users');
+    const fullMe = users.find(u => u.id === currentUser.id) || currentUser;
+    const mySectors = sectors.filter(s => s.id === fullMe.sectorId);
+    sel.innerHTML = mySectors.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  } else {
+    sel.innerHTML = '<option value="">Todos</option>' +
+      sectors.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  }
+  fillFunc();
+}
+
+function fillFunc() {
+  const currentUser = getCurrentUser();
+  const sectorId = parseInt(document.getElementById('fSetor').value)||null;
+  const users = DB.get('users');
+  let filteredUsers = users.filter(u=>u.status==='ativo'&&u.role==='funcionario');
+  
+  if (currentUser && currentUser.role === 'supervisor') {
+    const fullMe = users.find(u => u.id === currentUser.id) || currentUser;
+    filteredUsers = filteredUsers.filter(u => u.sectorId === fullMe.sectorId);
+  }
+  
+  if (sectorId) {
+    filteredUsers = filteredUsers.filter(u => u.sectorId === sectorId);
+  }
+  
+  document.getElementById('fFunc').innerHTML = '<option value="">Todos</option>' +
+    filteredUsers.map(u=>`<option value="${u.id}">${u.name}</option>`).join('');
+}
+
+function hoursToMin(str) {
+  if (!str) return 0;
+  const clean = str.replace(/[+\-]/g,'');
+  const [h,m] = clean.split('h').map(Number);
+  const val = (h||0)*60+(m||0);
+  return str.includes('-') ? -val : val;
+}
+
+function filtrar() {
+  const currentUser = getCurrentUser();
+  const sectorId = parseInt(document.getElementById('fSetor').value)||null;
+  const funcId = parseInt(document.getElementById('fFunc').value)||null;
+  const dtI = document.getElementById('fDtI').value;
+  const dtF = document.getElementById('fDtF').value;
+
+  const users = DB.get('users');
+  let bank = DB.get('bank');
+
+  let teamIds = null;
+  if (currentUser && currentUser.role === 'supervisor') {
+    const fullMe = users.find(u => u.id === currentUser.id) || currentUser;
+    teamIds = users.filter(u => u.sectorId === fullMe.sectorId).map(u => u.id);
+    bank = bank.filter(b => teamIds.includes(b.userId));
+  } else if (currentUser && currentUser.role === 'funcionario') {
+    bank = bank.filter(b => b.userId === currentUser.id);
+  }
+
+  if (sectorId) {
+    let filteredUsers = users.filter(u=>u.sectorId===sectorId);
+    if (teamIds) filteredUsers = filteredUsers.filter(u => teamIds.includes(u.id));
+    const uIds = filteredUsers.map(u=>u.id);
+    bank = bank.filter(b=>uIds.includes(b.userId));
+  }
+  
+  if (funcId) {
+    bank = bank.filter(b=>b.userId===funcId);
+  } else if (currentUser && currentUser.role === 'funcionario') {
+    bank = bank.filter(b=>b.userId===currentUser.id);
+  }
+  
+  if (dtI) bank = bank.filter(b=>b.date>=dtI);
+  if (dtF) bank = bank.filter(b=>b.date<=dtF);
+
+  bank.sort((a,b)=>b.date.localeCompare(a.date));
+
+  // Summary
+  const posMin = bank.filter(b=>b.type==='Hora Extra').reduce((a,b)=>a+hoursToMin(b.hours),0);
+  const negMin = bank.filter(b=>b.type==='Falta').reduce((a,b)=>a+Math.abs(hoursToMin(b.hours)),0);
+  const saldo = posMin - negMin;
+
+  document.getElementById('bankSummary').innerHTML = `
+    <div class="bank-card"><div class="bank-label">Saldo Positivo</div><div class="bank-value bank-positive">+${minToStr(posMin)}</div></div>
+    <div class="bank-card"><div class="bank-label">Saldo Negativo</div><div class="bank-value bank-negative">-${minToStr(negMin)}</div></div>
+    <div class="bank-card"><div class="bank-label">Saldo Final</div><div class="bank-value ${saldo>=0?'bank-positive':'bank-negative'}">${saldo>=0?'+':''}${minToStr(Math.abs(saldo))}</div></div>
+  `;
+
+  // Table
+  document.getElementById('histCount').textContent = bank.length + ' registros';
+  document.getElementById('histBody').innerHTML = bank.map(b=>{
+    const u = users.find(x=>x.id===b.userId)||{name:'?'};
+    const isPos = !b.hours.includes('-');
+    return `<tr>
+      <td>${fmtDate(b.date)}</td>
+      <td><div class="employee"><div class="avatar avatar-xs">${avatar(u.name)}</div><div class="emp-name">${u.name}</div></div></td>
+      <td>${getCompanyName(u.companyId)}</td>
+      <td><span class="status-badge ${b.type==='Hora Extra'?'status-ativo':'status-pendente'}">${b.type}</span></td>
+      <td style="color:${isPos?'var(--success)':'var(--danger)'};font-weight:700">${b.hours}</td>
+      <td style="color:var(--text-muted)">${b.obs||'-'}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum registro no período</td></tr>';
+
+  if (currentUser && currentUser.role !== 'funcionario') {
+    buildCharts(bank, users);
+  }
+}
+
+function buildCharts(bank, users) {
+  if (chartBanco) chartBanco.destroy();
+  if (chartSaldo) chartSaldo.destroy();
+
+  // Timeline
+  const byDate = {};
+  [...bank].sort((a,b)=>a.date.localeCompare(b.date)).forEach(b=>{
+    if (!byDate[b.date]) byDate[b.date]=0;
+    byDate[b.date] += hoursToMin(b.hours);
+  });
+  let acc=0; const cumulative = Object.values(byDate).map(v=>{acc+=v;return acc;});
+  
+  const canvas1 = document.getElementById('chartBanco');
+  if (canvas1) {
+    chartBanco = new Chart(canvas1,{
+      type:'line', data:{ labels:Object.keys(byDate).map(d=>fmtDate(d)), datasets:[{ label:'Saldo (min)', data:cumulative, borderColor:'#2563EB', backgroundColor:'rgba(37,99,235,.1)', fill:true, tension:.4 }] },
+      options:{ responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:false}} }
+    });
+  }
+
+  // Per user
+  const currentUser = getCurrentUser();
+  const fullMe = users.find(u => u.id === currentUser.id) || currentUser;
+  let activeUsers = users.filter(u=>u.role==='funcionario'&&u.status==='ativo');
+  
+  if (currentUser.role === 'supervisor') {
+    activeUsers = activeUsers.filter(u => u.sectorId === fullMe.sectorId);
+  }
+  
+  const saldos = activeUsers.map(u=>{
+    const e = bank.filter(b=>b.userId===u.id).reduce((a,b)=>a+hoursToMin(b.hours),0);
+    return {name:u.name.split(' ')[0], val:e};
+  }).filter(x=>x.val!==0);
+
+  const canvas2 = document.getElementById('chartSaldo');
+  if (canvas2) {
+    chartSaldo = new Chart(canvas2,{
+      type:'bar', data:{
+        labels:saldos.map(s=>s.name),
+        datasets:[{ label:'Saldo (min)', data:saldos.map(s=>s.val), backgroundColor:saldos.map(s=>s.val>=0?'#16a34a':'#dc2626'), borderRadius:6 }]
+      },
+      options:{ responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
+    });
+  }
+}
+
+function minToStr(min) { const h=Math.floor(min/60),m=min%60; return `${h}h${String(m).padStart(2,'0')}`; }
+</script>
+</body>
+</html>

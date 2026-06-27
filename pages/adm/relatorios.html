@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Relatórios - Stylle Ponto</title>
+<link rel="stylesheet" href="/assets/css/styles.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="/assets/js/app.js"></script>
+</head>
+<body>
+<div id="sidebar-container"></div>
+<div class="main-content">
+  <div id="topbar-container"></div>
+
+  <div class="filter-bar">
+    <div class="form-group">
+      <label>Empresa</label>
+      <select class="form-control" id="fEmpresa" style="width:180px" onchange="fillFuncionarios()">
+        <option value="">Todas</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Funcionário</label>
+      <select class="form-control" id="fFunc" style="width:200px">
+        <option value="">Todos</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Jornada</label>
+      <select class="form-control" id="fJornada" style="width:140px">
+        <option value="mensal">Mensal</option>
+        <option value="semestral">Semestral</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Mês/Ano</label>
+      <input type="month" class="form-control" id="fMes" style="width:150px">
+    </div>
+    <button class="btn btn-primary" onclick="gerarRelatorio()">Gerar Relatório</button>
+    <button class="btn btn-ghost" onclick="exportarPDF()">📄 PDF</button>
+    <button class="btn btn-ghost" onclick="exportarExcel()">📊 Excel</button>
+  </div>
+
+  <div id="relatorio" style="display:none">
+    <div class="panel" style="margin-bottom:20px">
+      <div class="panel-header">
+        <h2 id="relTitle">Relatório</h2>
+        <span id="relPeriodo"></span>
+      </div>
+      <div style="padding:16px 22px">
+        <div class="stats" id="resumoCards" style="margin-bottom:0"></div>
+      </div>
+    </div>
+
+    <div class="charts-row">
+      <div class="panel"><div class="panel-header"><h2>Horas Trabalhadas</h2></div>
+        <div class="chart-wrap"><canvas id="chartHoras"></canvas></div>
+      </div>
+      <div class="panel"><div class="panel-header"><h2>Horas Extras por Funcionário</h2></div>
+        <div class="chart-wrap"><canvas id="chartExtras"></canvas></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><h2>Detalhamento por Funcionário</h2></div>
+      <table>
+        <thead>
+          <tr><th>Funcionário</th><th>Empresa</th><th>Setor</th><th>H. Trabalhadas</th><th>H. Extras</th><th>Faltas</th><th>Banco de Horas</th></tr>
+        </thead>
+        <tbody id="relBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="placeholder" class="empty-state" style="padding:80px 20px">
+    <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    <p>Selecione os filtros e clique em <strong>Gerar Relatório</strong></p>
+  </div>
+</div>
+
+<script>
+let chartHoras, chartExtras;
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderTopbar('Relatórios', 'Análise gerencial de ponto');
+  const now = new Date();
+  document.getElementById('fMes').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  fillEmpresas();
+});
+
+function fillEmpresas() {
+  const sel = document.getElementById('fEmpresa');
+  DB.get('companies').forEach(c=>{
+    sel.innerHTML += `<option value="${c.id}">${c.name}</option>`;
+  });
+  fillFuncionarios();
+}
+
+function fillFuncionarios() {
+  const empId = parseInt(document.getElementById('fEmpresa').value)||null;
+  const sel = document.getElementById('fFunc');
+  const users = DB.get('users').filter(u=>u.status==='ativo' && u.role==='funcionario' && (!empId||u.companyId===empId));
+  sel.innerHTML = '<option value="">Todos</option>' + users.map(u=>`<option value="${u.id}">${u.name}</option>`).join('');
+}
+
+function gerarRelatorio() {
+  const empId = parseInt(document.getElementById('fEmpresa').value)||null;
+  const funcId = parseInt(document.getElementById('fFunc').value)||null;
+  const jornada = document.getElementById('fJornada').value;
+  const mes = document.getElementById('fMes').value;
+
+  const [ano, m] = mes.split('-').map(Number);
+  const users = DB.get('users').filter(u=>{
+    if (u.status!=='ativo'||u.role==='admin') return false;
+    if (empId && u.companyId!==empId) return false;
+    if (funcId && u.id!==funcId) return false;
+    return true;
+  });
+  const records = DB.get('records');
+  const bank = DB.get('bank');
+
+  const filteredRecs = records.filter(r=>{
+    const d=new Date(r.date);
+    return d.getMonth()+1===m && d.getFullYear()===ano;
+  });
+
+  const empresa = DB.get('companies').find(c=>c.id===empId);
+  document.getElementById('relTitle').textContent = empresa ? empresa.name : 'Todos as Empresas';
+  document.getElementById('relPeriodo').textContent = `${jornada==='mensal'?'Mensal':'Semestral'} - ${mes}`;
+
+  // Per user stats
+  const rows = users.map(u=>{
+    const recs = filteredRecs.filter(r=>r.userId===u.id);
+    const bankEntries = bank.filter(b=>{ const d=new Date(b.date); return b.userId===u.id && d.getMonth()+1===m && d.getFullYear()===ano; });
+    const totalMin = recs.reduce((acc,r)=>{ const [h,min]=(r.hoursWorked||'0h00').split('h').map(Number); return acc+h*60+min; },0);
+    const ovMin = bankEntries.filter(b=>b.type==='Hora Extra').reduce((acc,b)=>{ const m2=b.hours.replace(/[+h]/g,':').split(':'); return acc+parseInt(m2[1]||0)*60+parseInt(m2[2]||0); },0);
+    const faltas = recs.reduce((a,r)=>a+r.faults,0);
+    return { u, totalMin, ovMin, faltas, bankBalance:u.bankBalance||0 };
+  });
+
+  const totalWorked = rows.reduce((a,r)=>a+r.totalMin,0);
+  const totalOv = rows.reduce((a,r)=>a+r.ovMin,0);
+  const totalFaltas = rows.reduce((a,r)=>a+r.faltas,0);
+
+  document.getElementById('resumoCards').innerHTML = `
+    ${summCard('Total Funcionários', users.length, 'No período')}
+    ${summCard('H. Trabalhadas', minToStr(totalWorked), 'Soma total')}
+    ${summCard('H. Extras', minToStr(totalOv), 'Acumuladas', 'green')}
+    ${summCard('Faltas', totalFaltas, 'No período', 'red')}
+  `;
+
+  document.getElementById('relBody').innerHTML = rows.map(r=>`
+    <tr>
+      <td><div class="employee">
+        <div class="avatar avatar-sm">${avatar(r.u.name)}</div>
+        <div><div class="emp-name">${r.u.name}</div><div class="emp-email">${r.u.email}</div></div>
+      </div></td>
+      <td>${getCompanyName(r.u.companyId)}</td>
+      <td>${getSectorName(r.u.sectorId)}</td>
+      <td>${minToStr(r.totalMin)}</td>
+      <td style="color:var(--success)">${minToStr(r.ovMin)}</td>
+      <td style="color:${r.faltas?'var(--danger)':'inherit'}">${r.faltas}</td>
+      <td style="color:${r.bankBalance>=0?'var(--success)':'var(--danger)'}">
+        ${r.bankBalance>=0?'+':''}${r.bankBalance}min
+      </td>
+    </tr>`).join('');
+
+  // Charts
+  if (chartHoras) chartHoras.destroy();
+  if (chartExtras) chartExtras.destroy();
+
+  const names = rows.map(r=>r.u.name.split(' ')[0]);
+  
+  const canvas1 = document.getElementById('chartHoras');
+  if (canvas1) {
+    chartHoras = new Chart(canvas1,{
+      type:'bar', data:{ labels:names, datasets:[{ label:'Horas (min)', data:rows.map(r=>r.totalMin), backgroundColor:'#2563EB', borderRadius:6 }] },
+      options:{ responsive:true, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true } } }
+    });
+  }
+  
+  const canvas2 = document.getElementById('chartExtras');
+  if (canvas2) {
+    chartExtras = new Chart(canvas2,{
+      type:'bar', data:{ labels:names, datasets:[{ label:'H. Extras (min)', data:rows.map(r=>r.ovMin), backgroundColor:'#16a34a', borderRadius:6 }] },
+      options:{ responsive:true, plugins:{ legend:{display:false} }, scales:{ y:{ beginAtZero:true } } }
+    });
+  }
+
+  document.getElementById('relatorio').style.display='block';
+  document.getElementById('placeholder').style.display='none';
+}
+
+function summCard(label, val, sub, color='') {
+  const icons = { green:'<path d="M3 17l5-5 4 4 8-9"/>', red:'<path d="M18 6L6 18M6 6l12 12"/>', '':'<circle cx="9" cy="8" r="3.5"/>' };
+  return `<div class="stat-card">
+    <div class="stat-icon ${color}">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${icons[color]||icons['']}</svg>
+    </div>
+    <div class="stat-value">${val}</div>
+    <div class="stat-title">${label}</div>
+    <div class="stat-sub">${sub}</div>
+  </div>`;
+}
+
+function minToStr(min) {
+  const h=Math.floor(min/60), m=min%60;
+  return `${h}h${String(m).padStart(2,'0')}`;
+}
+
+function exportarPDF() { toast('Funcionalidade de PDF requer backend integrado', 'warning'); }
+function exportarExcel() { toast('Funcionalidade de Excel requer backend integrado', 'warning'); }
+</script>
+</body>
+</html>

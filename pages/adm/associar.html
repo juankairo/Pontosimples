@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Associar Funcionários - Stylle Ponto</title>
+<link rel="stylesheet" href="/assets/css/styles.css">
+<script src="/assets/js/app.js"></script>
+</head>
+<body>
+<div id="sidebar-container"></div>
+<div class="main-content">
+  <div id="topbar-container"></div>
+
+  <div class="filter-bar">
+    <div class="form-group">
+      <label>Pesquisar usuário</label>
+      <div class="search-wrap">
+        <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" class="form-control" id="searchInput" placeholder="Pesquisar por nome..." oninput="render()" style="padding-left:34px;width:240px">
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header"><h2>Gerenciamento de Usuários e Perfis</h2><span id="count"></span></div>
+    <table>
+      <thead>
+        <tr><th>Funcionário</th><th>Empresa</th><th>Setores</th><th>Função</th><th>Carga Horária</th><th>Perfil</th><th>Ação</th></tr>
+      </thead>
+      <tbody id="tableBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal Editar -->
+<div class="modal-overlay" id="modal">
+  <div class="modal" style="max-width: 460px;">
+    <h3>Configurar Usuário</h3>
+    <div id="modalName" style="font-size:16px;font-weight:700;margin-bottom:16px;color:var(--accent)"></div>
+    <input type="hidden" id="editId">
+    
+    <div class="form-group">
+      <label>Perfil de Acesso</label>
+      <select class="form-control" id="selRole">
+        <option value="funcionario">Funcionário (Normal)</option>
+        <option value="supervisor">Supervisor</option>
+        <option value="admin">Administrador</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Empresa</label>
+      <select class="form-control" id="selEmpresa"></select>
+    </div>
+
+    <div class="form-group">
+      <label>Setores (marque um ou mais)</label>
+      <div id="sectorList" style="display:flex;flex-direction:column;gap:6px;max-height:120px;overflow-y:auto;border:1.5px solid var(--border);border-radius:8px;padding:10px"></div>
+    </div>
+
+    <div class="form-group">
+      <label>Função (filtrada pelos setores)</label>
+      <select class="form-control" id="selFuncao"></select>
+    </div>
+
+    <div class="form-group">
+      <label>Carga Horária</label>
+      <select class="form-control" id="selCarga"></select>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvar()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  renderTopbar('Associar Funcionários', 'Configure o perfil de acesso, empresa, setores e função dos colaboradores');
+  render();
+});
+
+function render() {
+  const q = (document.getElementById('searchInput')?.value||'').toLowerCase();
+  const currentUser = getCurrentUser() || { id: 0 };
+  
+  const users = DB.get('users').filter(u => u.status === 'ativo' && u.id !== currentUser.id);
+  const filtered = users.filter(u => u.name.toLowerCase().includes(q));
+  document.getElementById('count').textContent = filtered.length + ' usuários';
+
+  const roleClass = { admin:'role-admin', supervisor:'role-supervisor', funcionario:'role-funcionario' };
+  const roleLabel = { admin:'Admin', supervisor:'Supervisor', funcionario:'Funcionário' };
+
+  document.getElementById('tableBody').innerHTML = filtered.map(u => {
+    const userSectors = u.sectors || (u.sectorId ? [u.sectorId] : []);
+    const userFunctionId = u.functionId || (u.functions && u.functions[0]) || null;
+    
+    return `
+    <tr>
+      <td><div class="employee">
+        <div class="avatar avatar-md">${avatar(u.name)}</div>
+        <div><div class="emp-name">${u.name}</div><div class="emp-email">${u.email}</div></div>
+      </div></td>
+      <td>${getCompanyName(u.companyId)}</td>
+      <td>${getSectorNames(userSectors)}</td>
+      <td>${getFunctionName(userFunctionId)}</td>
+      <td>${getWorkloadName(u.workloadId)}</td>
+      <td><span class="role-badge ${roleClass[u.role]||''}">${roleLabel[u.role]||u.role}</span></td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openModal(${u.id})">✏ Editar</button></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">Nenhum usuário encontrado</td></tr>';
+}
+
+function openModal(id) {
+  const users = DB.get('users');
+  const u = users.find(x=>x.id===id);
+  if (!u) return;
+  document.getElementById('editId').value = id;
+  document.getElementById('modalName').textContent = u.name;
+
+  const companies = DB.get('companies');
+  const sectors = DB.get('sectors');
+  const workloads = DB.get('workloads');
+
+  // Perfil
+  document.getElementById('selRole').value = u.role || 'funcionario';
+
+  // Empresa
+  document.getElementById('selEmpresa').innerHTML = '<option value="">Selecione...</option>' +
+    companies.map(c=>`<option value="${c.id}" ${u.companyId===c.id?'selected':''}>${c.name}</option>`).join('');
+  
+  // Setores (Checkboxes)
+  const userSectors = u.sectors || (u.sectorId ? [u.sectorId] : []);
+  document.getElementById('sectorList').innerHTML = sectors.map(s => `
+    <label class="checkbox-wrap">
+      <input type="checkbox" name="sector" value="${s.id}" ${userSectors.includes(s.id)?'checked':''} onchange="updateFuncOptions()">
+      ${s.name} (${getCompanyName(s.companyId)})
+    </label>`).join('');
+
+  // Carga Horária
+  document.getElementById('selCarga').innerHTML = '<option value="">Selecione...</option>' +
+    workloads.map(w=>`<option value="${w.id}" ${u.workloadId===w.id?'selected':''}>${w.name}</option>`).join('');
+
+  // Atualizar opções de funções filtradas pelos setores selecionados
+  const userFunctionId = u.functionId || (u.functions && u.functions[0]) || null;
+  updateFuncOptions(userFunctionId);
+
+  document.getElementById('modal').classList.add('open');
+}
+
+function updateFuncOptions(selectedFuncId = null) {
+  const sectors = [...document.querySelectorAll('input[name=sector]:checked')].map(c=>parseInt(c.value));
+  const selFuncao = document.getElementById('selFuncao');
+  const functions = DB.get('functions');
+  
+  // Filtrar funções pertencentes aos setores selecionados
+  const filtered = functions.filter(f => !sectors.length || sectors.includes(f.sectorId));
+  
+  const currentVal = selectedFuncId || parseInt(selFuncao.value) || null;
+  
+  selFuncao.innerHTML = '<option value="">Selecione...</option>' +
+    filtered.map(f=>`<option value="${f.id}" ${currentVal===f.id?'selected':''}>${f.name} (${getSectorName(f.sectorId)})</option>`).join('');
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+function salvar() {
+  const id = parseInt(document.getElementById('editId').value);
+  const role = document.getElementById('selRole').value;
+  const companyId = parseInt(document.getElementById('selEmpresa').value)||null;
+  const sectors = [...document.querySelectorAll('input[name=sector]:checked')].map(c=>parseInt(c.value));
+  const functionId = parseInt(document.getElementById('selFuncao').value)||null;
+  const workloadId = parseInt(document.getElementById('selCarga').value)||null;
+
+  const users = DB.get('users');
+  const u = users.find(x=>x.id===id);
+  if (u) {
+    u.role = role;
+    u.companyId = companyId;
+    u.sectors = sectors;
+    u.sectorId = sectors[0] || null;
+    u.functionId = functionId;
+    u.functions = functionId ? [functionId] : [];
+    u.workloadId = workloadId;
+    
+    DB.set('users', users);
+    logAudit('Usuário configurado', `${u.name} (Perfil: ${role})`);
+    toast('Configurações atualizadas com sucesso!', 'success');
+    closeModal();
+    render();
+  }
+}
+</script>
+</body>
+</html>

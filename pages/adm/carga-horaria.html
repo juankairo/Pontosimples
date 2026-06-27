@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Carga Horária - Stylle Ponto</title>
+<link rel="stylesheet" href="/assets/css/styles.css">
+<script src="/assets/js/app.js"></script>
+</head>
+<body>
+<div id="sidebar-container"></div>
+<div class="main-content">
+  <div id="topbar-container"></div>
+
+  <!-- Modelos prontos -->
+  <div class="panel" style="margin-bottom:20px">
+    <div class="panel-header"><h2>Modelos Padrão</h2><span>Clique para usar</span></div>
+    <div style="padding:20px">
+      <div class="wl-grid" id="modelCards"></div>
+    </div>
+  </div>
+
+  <!-- Personalizado + Lista -->
+  <div class="cadastro-split">
+    <div class="panel" style="padding:22px">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:4px" id="formTitle">Jornada Personalizada</h3>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px">Respeita a CLT: máx. 8h/dia, 44h/semana, 220h/mês</p>
+      <input type="hidden" id="editId">
+      <div class="form-group"><label>Nome da Jornada *</label>
+        <input type="text" class="form-control" id="inputNome" placeholder="Ex: Parcial Manhã">
+      </div>
+      <div class="grid-2" style="gap:12px">
+        <div class="form-group"><label>Horas por Dia *</label>
+          <input type="number" class="form-control" id="inputHrsDia" min="1" max="10" placeholder="8" oninput="calcTotal()">
+        </div>
+        <div class="form-group"><label>Dias por Semana *</label>
+          <input type="number" class="form-control" id="inputDiasSem" min="1" max="6" placeholder="5" oninput="calcTotal()">
+        </div>
+      </div>
+      <div class="form-group"><label>Horário Padrão</label>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input type="time" class="form-control" id="inputInicio" value="08:00">
+          <span>até</span>
+          <input type="time" class="form-control" id="inputFim" value="17:00">
+        </div>
+      </div>
+      <div id="calcBox" style="background:var(--bg);border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px;display:none">
+        <div style="font-weight:700;color:var(--accent)" id="calcResult"></div>
+        <div id="calcWarn" style="color:var(--danger);font-size:12px;margin-top:4px"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="salvar()" style="flex:1">💾 Salvar Jornada</button>
+        <button class="btn btn-ghost" onclick="limpar()">✖</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header"><h2>Jornadas Cadastradas</h2><span id="count"></span></div>
+      <div id="listWrap"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  renderTopbar('Carga Horária', 'Gerencie jornadas de trabalho');
+  renderModels();
+  renderList();
+});
+
+function renderModels() {
+  const models = [
+    { h:4, label:'4 Horas Diárias', desc:'Meio período · 20h/sem · 88h/mês' },
+    { h:6, label:'6 Horas Diárias', desc:'Turno · 30h/sem · 132h/mês' },
+    { h:8, label:'8 Horas Diárias', desc:'Integral · 44h/sem · 220h/mês' },
+  ];
+  document.getElementById('modelCards').innerHTML = models.map(m=>`
+    <div class="wl-card" onclick="usarModelo(${m.h})">
+      <div class="wl-hours">${m.h}h</div>
+      <div style="font-weight:700;margin-top:6px">${m.label}</div>
+      <div class="wl-label">${m.desc}</div>
+    </div>`).join('');
+}
+
+function usarModelo(h) {
+  const map = {4:{nome:'4h Diárias',ini:'08:00',fim:'12:00',dias:5}, 6:{nome:'6h Diárias',ini:'08:00',fim:'14:00',dias:5}, 8:{nome:'8h Diárias',ini:'08:00',fim:'17:00',dias:5}};
+  const m = map[h];
+  document.getElementById('inputNome').value = m.nome;
+  document.getElementById('inputHrsDia').value = h;
+  document.getElementById('inputDiasSem').value = m.dias;
+  document.getElementById('inputInicio').value = m.ini;
+  document.getElementById('inputFim').value = m.fim;
+  calcTotal();
+  window.scrollTo({top:300,behavior:'smooth'});
+}
+
+function calcTotal() {
+  const h = parseFloat(document.getElementById('inputHrsDia').value)||0;
+  const d = parseFloat(document.getElementById('inputDiasSem').value)||0;
+  if (!h||!d) { document.getElementById('calcBox').style.display='none'; return; }
+  const semana = h*d, mes = semana*4.33;
+  document.getElementById('calcBox').style.display='block';
+  document.getElementById('calcResult').textContent = `${h}h/dia · ${semana.toFixed(0)}h/semana · ${mes.toFixed(0)}h/mês`;
+  let warn='';
+  if (h>10) warn='⚠ Máximo permitido: 10h/dia (com hora extra). CLT art. 59.';
+  else if (semana>44) warn='⚠ Limite semanal: 44h (CLT art. 58). Revise os dias.';
+  document.getElementById('calcWarn').textContent=warn;
+}
+
+function renderList() {
+  const list = DB.get('workloads');
+  document.getElementById('count').textContent = list.length;
+  document.getElementById('listWrap').innerHTML = list.length ? list.map(w=>`
+    <div class="list-item">
+      <div>
+        <div style="font-weight:700">${w.name}</div>
+        <div style="font-size:12px;color:var(--text-muted)">${w.hoursPerDay}h/dia · ${(w.hoursPerDay*(w.daysPerWeek||5)).toFixed(0)}h/semana</div>
+        ${w.start?`<div style="font-size:12px;color:var(--text-muted)">${w.start} – ${w.end}</div>`:''}
+      </div>
+      <div class="list-item-actions">
+        <button class="btn btn-ghost btn-sm" onclick="editar(${w.id})">✏</button>
+        <button class="btn btn-danger btn-sm" onclick="excluir(${w.id})">🗑</button>
+      </div>
+    </div>`).join('') : '<div class="empty-state" style="padding:24px"><p>Nenhuma jornada</p></div>';
+}
+
+function salvar() {
+  const nome = document.getElementById('inputNome').value.trim();
+  const h    = parseFloat(document.getElementById('inputHrsDia').value)||0;
+  const d    = parseFloat(document.getElementById('inputDiasSem').value)||0;
+  const start= document.getElementById('inputInicio').value;
+  const end  = document.getElementById('inputFim').value;
+  if (!nome||!h||!d) { toast('Preencha todos os campos obrigatórios','warning'); return; }
+  if (h>10) { toast('Máximo de 10h diárias permitido pela CLT','error'); return; }
+  if (h*d>44) { toast('Jornada semanal não pode ultrapassar 44h (CLT)','error'); return; }
+
+  const list = DB.get('workloads');
+  const id = parseInt(document.getElementById('editId').value)||null;
+  if (id) {
+    const idx=list.findIndex(w=>w.id===id);
+    if(idx>-1) list[idx]={...list[idx],name:nome,hoursPerDay:h,daysPerWeek:d,start,end};
+    logAudit('Carga horária editada',nome); toast('Jornada atualizada!');
+  } else {
+    list.push({id:nextId(list),name:nome,hoursPerDay:h,daysPerWeek:d,start,end,type:'custom'});
+    logAudit('Carga horária criada',nome); toast('Jornada cadastrada!');
+  }
+  DB.set('workloads',list); limpar(); renderList();
+}
+
+function editar(id) {
+  const w=DB.get('workloads').find(x=>x.id===id); if(!w) return;
+  document.getElementById('editId').value=id;
+  document.getElementById('inputNome').value=w.name;
+  document.getElementById('inputHrsDia').value=w.hoursPerDay;
+  document.getElementById('inputDiasSem').value=w.daysPerWeek||5;
+  document.getElementById('inputInicio').value=w.start||'08:00';
+  document.getElementById('inputFim').value=w.end||'17:00';
+  document.getElementById('formTitle').textContent='Editar Jornada';
+  calcTotal();
+}
+
+function excluir(id) {
+  const w=DB.get('workloads').find(x=>x.id===id);
+  if(!confirm(`Excluir "${w?.name}"?`)) return;
+  DB.set('workloads',DB.get('workloads').filter(x=>x.id!==id));
+  logAudit('Carga horária excluída',w?.name||''); toast('Excluída','error'); renderList();
+}
+
+function limpar(){
+  ['editId','inputNome','inputHrsDia','inputDiasSem'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('inputInicio').value='08:00';
+  document.getElementById('inputFim').value='17:00';
+  document.getElementById('calcBox').style.display='none';
+  document.getElementById('formTitle').textContent='Jornada Personalizada';
+}
+</script>
+</body>
+</html>

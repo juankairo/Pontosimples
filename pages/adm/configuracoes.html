@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Configurações - Stylle Ponto</title>
+<link rel="stylesheet" href="/assets/css/styles.css">
+<script src="/assets/js/app.js"></script>
+</head>
+<body>
+<div id="sidebar-container"></div>
+<div class="main-content">
+  <div id="topbar-container"></div>
+
+  <div class="grid-2" style="align-items:start">
+    <!-- COLUNA ESQUERDA -->
+    <div>
+      <!-- Geral -->
+      <div class="panel" style="padding:24px;margin-bottom:20px">
+        <div class="settings-section">
+          <h3>⚙️ Configurações Gerais</h3>
+          <div class="form-group"><label>Nome do Sistema</label>
+            <input type="text" class="form-control" id="sNome" placeholder="Stylle Ponto">
+          </div>
+          <div class="form-group"><label>E-mail Remetente</label>
+            <input type="email" class="form-control" id="sEmail" placeholder="noreply@empresa.com">
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h3>🎨 Aparência</h3>
+          <div class="form-group"><label>Cor Principal</label>
+            <div class="color-row">
+              <input type="color" id="sCor1" onchange="previewColor()">
+              <input type="text" class="form-control" id="sCor1Hex" placeholder="#0b1d4d" style="flex:1" oninput="syncColorFromText('sCor1','sCor1Hex')">
+              <div class="color-preview" id="prev1"></div>
+            </div>
+          </div>
+          <div class="form-group"><label>Cor Secundária / Destaque</label>
+            <div class="color-row">
+              <input type="color" id="sCor2" onchange="previewColor()">
+              <input type="text" class="form-control" id="sCor2Hex" placeholder="#2563EB" style="flex:1" oninput="syncColorFromText('sCor2','sCor2Hex')">
+              <div class="color-preview" id="prev2"></div>
+            </div>
+          </div>
+          <div class="form-group"><label>Logo do Sistema (URL ou arquivo)</label>
+            <input type="text" class="form-control" id="sLogo" placeholder="URL da imagem...">
+          </div>
+        </div>
+      </div>
+
+      <!-- Tolerâncias -->
+      <div class="panel" style="padding:24px">
+        <div class="settings-section">
+          <h3>⏱ Regras de Ponto</h3>
+          <div class="form-group"><label>Tolerância de Atraso</label>
+            <select class="form-control" id="sTolerancia">
+              <option value="5">5 minutos</option>
+              <option value="10">10 minutos</option>
+              <option value="15">15 minutos</option>
+              <option value="0">Sem tolerância</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Tempo Mínimo para Hora Extra</label>
+            <select class="form-control" id="sHoraExtra">
+              <option value="5">5 minutos</option>
+              <option value="10">10 minutos</option>
+              <option value="15">15 minutos</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Considerar Banco de Horas?</label>
+            <select class="form-control" id="sBanco">
+              <option value="sim">Sim — acumular automaticamente</option>
+              <option value="nao">Não — apenas registrar</option>
+            </select>
+          </div>
+          <div class="form-group"><label>Limite Mensal de Horas Extras</label>
+            <div style="display:flex;align-items:center;gap:8px">
+              <input type="number" class="form-control" id="sLimiteExtra" min="0" max="100" placeholder="Ex: 20" style="flex:1">
+              <span style="color:var(--text-muted);white-space:nowrap">horas/mês</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUNA DIREITA -->
+    <div>
+      <!-- Preview -->
+      <div class="panel" style="padding:24px;margin-bottom:20px">
+        <h3 style="font-size:14px;font-weight:700;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--border)">👁 Pré-visualização</h3>
+        <div id="previewBox" style="border-radius:10px;overflow:hidden;border:1.5px solid var(--border)">
+          <div id="prevSidebar" style="padding:14px 16px;display:flex;align-items:center;gap:10px">
+            <div style="width:28px;height:28px;border-radius:6px;background:var(--accent);display:flex;align-items:center;justify-content:center">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            </div>
+            <div>
+              <div id="prevNome" style="font-size:14px;font-weight:700;color:white">Stylle Ponto</div>
+              <div style="font-size:10px;color:rgba(255,255,255,.6)">Sistema de Ponto</div>
+            </div>
+          </div>
+          <div style="background:#f0f2f8;padding:14px 16px">
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <div id="prevBtn" style="padding:7px 14px;border-radius:7px;color:white;font-size:12px;font-weight:700">Administrador</div>
+              <div style="padding:7px 14px;border-radius:7px;background:white;border:1.5px solid #e4e7ef;font-size:12px;color:#1f2430">Dashboard</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notificações -->
+      <div class="panel" style="padding:24px;margin-bottom:20px">
+        <div class="settings-section">
+          <h3>🔔 Notificações</h3>
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <label class="checkbox-wrap"><input type="checkbox" id="nSolic" checked> Novas solicitações de acesso</label>
+            <label class="checkbox-wrap"><input type="checkbox" id="nAtraso" checked> Funcionários com atraso</label>
+            <label class="checkbox-wrap"><input type="checkbox" id="nExtra" checked> Horas extras acima do limite</label>
+            <label class="checkbox-wrap"><input type="checkbox" id="nAdmin" checked> Alterações por administradores</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ações -->
+      <div class="panel" style="padding:24px">
+        <h3 style="font-size:14px;font-weight:700;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--border)">🛠 Ações do Sistema</h3>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn btn-primary" onclick="salvar()" style="justify-content:center">💾 Salvar Configurações</button>
+          <button class="btn btn-ghost" onclick="resetarPadrao()" style="justify-content:center">↩ Restaurar Padrões</button>
+          <button class="btn btn-danger" onclick="limparDados()" style="justify-content:center">🗑 Limpar Todos os Dados</button>
+        </div>
+        <div style="margin-top:16px;padding:12px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--text-muted)">
+          <strong>Versão:</strong> 1.0.0 &nbsp;|&nbsp;
+          <strong>Banco:</strong> localStorage &nbsp;|&nbsp;
+          <strong>Build:</strong> 2026.06
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  renderTopbar('Configurações', 'Personalize o sistema');
+  carregarConfig();
+});
+
+function carregarConfig() {
+  const s = DB.getObj('settings', {});
+  document.getElementById('sNome').value        = s.systemName||'Stylle Ponto';
+  document.getElementById('sEmail').value       = s.senderEmail||'noreply@stylleponto.com';
+  document.getElementById('sLogo').value        = s.logo||'';
+  document.getElementById('sCor1').value        = s.primaryColor||'#0b1d4d';
+  document.getElementById('sCor1Hex').value     = s.primaryColor||'#0b1d4d';
+  document.getElementById('sCor2').value        = s.secondaryColor||'#2563EB';
+  document.getElementById('sCor2Hex').value     = s.secondaryColor||'#2563EB';
+  document.getElementById('sTolerancia').value  = s.delayTolerance||'10';
+  document.getElementById('sHoraExtra').value   = s.overtimeMinimum||'10';
+  document.getElementById('sBanco').value       = s.bankEnabled||'sim';
+  document.getElementById('sLimiteExtra').value = s.overtimeLimit||'';
+  previewColor();
+}
+
+function previewColor() {
+  const c1 = document.getElementById('sCor1').value;
+  const c2 = document.getElementById('sCor2').value;
+  document.getElementById('sCor1Hex').value = c1;
+  document.getElementById('sCor2Hex').value = c2;
+  document.getElementById('prev1').style.background = c1;
+  document.getElementById('prev2').style.background = c2;
+  document.getElementById('prevSidebar').style.background = c1;
+  document.getElementById('prevBtn').style.background = c2;
+  document.getElementById('prevNome').textContent = document.getElementById('sNome').value||'Stylle Ponto';
+}
+
+function syncColorFromText(colorId, hexId) {
+  const val = document.getElementById(hexId).value;
+  if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+    document.getElementById(colorId).value = val;
+    previewColor();
+  }
+}
+
+// Escuta input de nome
+document.getElementById('sNome').addEventListener('input', previewColor);
+
+function salvar() {
+  const s = {
+    systemName:     document.getElementById('sNome').value.trim(),
+    senderEmail:    document.getElementById('sEmail').value.trim(),
+    logo:           document.getElementById('sLogo').value.trim(),
+    primaryColor:   document.getElementById('sCor1').value,
+    secondaryColor: document.getElementById('sCor2').value,
+    delayTolerance: document.getElementById('sTolerancia').value,
+    overtimeMinimum:document.getElementById('sHoraExtra').value,
+    bankEnabled:    document.getElementById('sBanco').value,
+    overtimeLimit:  document.getElementById('sLimiteExtra').value,
+  };
+  if (!s.systemName) { toast('Informe o nome do sistema','warning'); return; }
+  DB.setObj('settings', s);
+  // Apply CSS vars live
+  document.documentElement.style.setProperty('--primary', s.primaryColor);
+  document.documentElement.style.setProperty('--accent', s.secondaryColor);
+  logAudit('Configurações atualizadas', 'Sistema');
+  toast('Configurações salvas com sucesso!');
+}
+
+function resetarPadrao() {
+  if (!confirm('Restaurar configurações padrão?')) return;
+  DB.setObj('settings', { systemName:'Stylle Ponto', primaryColor:'#0b1d4d', secondaryColor:'#2563EB', senderEmail:'noreply@stylleponto.com', delayTolerance:'10', overtimeMinimum:'10', bankEnabled:'sim' });
+  carregarConfig();
+  toast('Configurações restauradas!');
+}
+
+function limparDados() {
+  if (!confirm('ATENÇÃO: Isso irá apagar TODOS os dados do sistema. Esta ação é irreversível!\n\nDeseja continuar?')) return;
+  if (!confirm('Tem certeza absoluta? Todos os registros, usuários e configurações serão perdidos.')) return;
+  localStorage.clear();
+  toast('Dados limpos. Recarregando...','error');
+  setTimeout(()=>location.href='/index.html', 1500);
+}
+</script>
+</body>
+</html>

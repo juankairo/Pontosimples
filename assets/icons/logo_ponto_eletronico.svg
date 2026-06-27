@@ -1,0 +1,22 @@
+<svg width="220" height="60" viewBox="0 0 220 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Relógio cinza -->
+  <circle cx="30" cy="30" r="20" stroke="#CBD5E1" stroke-width="5" stroke-linecap="round" stroke-dasharray="85 35"></circle>
+
+  <!-- Arco azul (posição original) -->
+  <circle cx="30" cy="30" r="20" stroke="#0F2FA0" stroke-width="5" stroke-linecap="round" stroke-dasharray="35 85"></circle>
+
+  <!-- Check -->
+  <path d="M22 30 L28 36 L40 24" stroke="#0F2FA0" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></path>
+
+  <!-- Texto principal -->
+  <text x="65" y="28" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" fill="#0A1F5C">
+    PONTO
+  </text>
+
+  <!-- Texto secundário -->
+  <text x="65" y="46" font-family="Inter, Arial, sans-serif" font-size="10" letter-spacing="2" fill="#64748B">
+    ELETRÔNICO
+  </text>
+
+</svg>

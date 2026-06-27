@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cartão de Ponto - Stylle Ponto</title>
+<link rel="stylesheet" href="/assets/css/styles.css">
+<script src="/assets/js/app.js"></script>
+<style>
+  .cartao-nav {
+    display:flex;align-items:center;justify-content:space-between;
+    background:var(--white);border-radius:var(--radius);padding:14px 20px;
+    margin-bottom:16px;box-shadow:var(--shadow);flex-wrap:wrap;gap:12px;
+  }
+  .cartao-nav-info { text-align:center;flex:1;min-width:160px; }
+  .cartao-nav-info h2 { font-size:17px;font-weight:700; }
+  .cartao-nav-info .sub { font-size:12px;color:var(--text-muted);margin-top:2px; }
+  .cartao-totals {
+    display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;
+  }
+  .total-pill {
+    background:var(--white);border-radius:var(--radius);padding:14px 16px;
+    box-shadow:var(--shadow);text-align:center;
+  }
+  .total-pill .val { font-size:20px;font-weight:800; }
+  .total-pill .lbl { font-size:11px;color:var(--text-muted);margin-top:2px; }
+  .cartao-table-wrap { overflow-x:auto;-webkit-overflow-scrolling:touch; }
+  tfoot td { font-weight:700;background:#f7f8fb;padding:12px 18px;font-size:13.5px; }
+  .holiday-row { background:#e0f2fe !important; }
+  .weekend-row { background:#f9fafb !important; }
+  .absent-row { background:#fff5f5 !important; }
+  .justified-row { background:#fef3c7 !important; }
+
+  /* Grid 3x3 Jogo da Velha */
+  .grid-3x3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 16px;
+    margin-bottom: 16px;
+  }
+  .grid-box {
+    background: #f7fafc;
+    border: 2.5px solid #edf2f7;
+    border-radius: 10px;
+    padding: 14px 8px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 80px;
+    transition: all 0.2s ease;
+    user-select: none;
+  }
+  .grid-box.clickable {
+    cursor: pointer;
+    background: #ffffff;
+    border-color: var(--accent);
+  }
+  .grid-box.clickable:hover {
+    background: var(--bg);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(37,99,235,0.12);
+  }
+  .grid-box .title {
+    font-size: 9.5px;
+    color: var(--text-muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+  .grid-box .value {
+    font-size: 13.5px;
+    font-weight: 800;
+    color: var(--text);
+    word-break: break-all;
+  }
+
+  @media(max-width:768px){
+    .cartao-totals { grid-template-columns:repeat(2,1fr); }
+    .total-pill .val { font-size:17px; }
+    .grid-3x3 { gap: 6px; }
+    .grid-box { min-height: 70px; padding: 10px 4px; }
+    .grid-box .value { font-size: 11px; }
+  }
+  @media(max-width:480px){
+    .cartao-totals { grid-template-columns:1fr 1fr; }
+    .cartao-nav { padding:10px 12px; }
+    .cartao-nav-info h2 { font-size:14px; }
+  }
+</style>
+</head>
+<body>
+<div id="sidebar-container"></div>
+<div class="main-content">
+  <div id="topbar-container"></div>
+
+  <!-- FILTROS -->
+  <div class="filter-bar">
+    <div class="form-group" id="empresaFilterGroup">
+      <label>Empresa</label>
+      <select class="form-control" id="fEmpresa" style="width:180px" onchange="fillFunc()">
+        <option value="">Todas</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Mês/Ano</label>
+      <input type="month" class="form-control" id="fMes" style="width:150px">
+    </div>
+    <button class="btn btn-primary" id="btnVisualizar" onclick="iniciar()">👁 Visualizar</button>
+    <button class="btn btn-ghost" onclick="exportarPDF()">📄 PDF</button>
+    <button class="btn btn-ghost" onclick="exportarExcel()">📊 Excel</button>
+  </div>
+
+  <!-- NAVEGAÇÃO FUNCIONÁRIO -->
+  <div id="cartaoView" style="display:none">
+    <div class="cartao-nav" id="cartaoNav">
+      <button class="btn btn-ghost" onclick="navFunc(-1)" id="btnPrev">← Anterior</button>
+      <div class="cartao-nav-info">
+        <h2 id="funcNome">—</h2>
+        <div class="sub" id="funcSub">—</div>
+        <div style="margin-top:6px;font-size:12px;color:var(--text-muted)" id="funcPosicao"></div>
+      </div>
+      <button class="btn btn-ghost" onclick="navFunc(1)" id="btnNext">Próximo →</button>
+    </div>
+
+    <!-- TOTAIS -->
+    <div class="cartao-totals">
+      <div class="total-pill"><div class="val" id="totTrab" style="color:var(--accent)">0h00</div><div class="lbl">H. Trabalhadas</div></div>
+      <div class="total-pill"><div class="val" id="totExtra" style="color:var(--success)">0h00</div><div class="lbl">H. Extras</div></div>
+      <div class="total-pill"><div class="val" id="totFaltas" style="color:var(--danger)">0</div><div class="lbl">Faltas</div></div>
+      <div class="total-pill"><div class="val" id="totBanco">0h00</div><div class="lbl">Banco de Horas</div></div>
+    </div>
+
+    <!-- TABELA -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2 id="tabelaTitulo">Cartão de Ponto</h2>
+        <span id="mesPeriodo">Clique em um dia na tabela para abrir o editor compacto (Jogo da Velha)</span>
+      </div>
+      <div class="cartao-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th><th>Dia</th><th>Entrada 1</th><th>Saída 1</th>
+              <th>Entrada 2</th><th>Saída 2</th><th>H. Trabalhadas</th>
+              <th>H. Extras</th><th>Faltas</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+          <tfoot id="tableFoot"></tfoot>
+        </table>
+      </div>
+      <div class="legend" style="padding:12px 20px">
+        <div class="legend-item"><div class="legend-dot" style="background:#e0f2fe;border:1px solid var(--info)"></div>Feriado</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f9fafb;border:1px solid #ddd"></div>Fim de Semana (Domingo)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fff5f5;border:1px solid #fca5a5"></div>Falta (Dias passados sem registro)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#fef3c7;border:1px solid var(--warning)"></div>Justificado</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLACEHOLDER -->
+  <div id="placeholder" class="empty-state" style="padding:80px 20px">
+    <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M3 9.5h18M8 3v3M16 3v3"/></svg>
+    <p>Selecione empresa e mês, depois clique em <strong>Visualizar</strong></p>
+  </div>
+</div>
+
+<!-- Modal Jogo da Velha (Painel Compacto 3x3) -->
+<div class="modal-overlay" id="modalJogo">
+  <div class="modal" style="max-width: 460px; padding: 20px;">
+    <h3 style="margin-bottom: 4px; font-size: 16px; font-weight: 700;">Folha de Ponto - Detalhes do Dia</h3>
+    <div id="jogoDataLabel" style="font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 16px;"></div>
+    
+    <div class="grid-3x3">
+      <!-- Linha 1 -->
+      <div class="grid-box" id="boxIn1">
+        <span class="title">Entrada 1</span>
+        <span class="value" id="valIn1">—</span>
+      </div>
+      <div class="grid-box" id="boxOut1">
+        <span class="title">Saída 1</span>
+        <span class="value" id="valOut1">—</span>
+      </div>
+      <div class="grid-box" id="boxIn2">
+        <span class="title">Entrada 2</span>
+        <span class="value" id="valIn2">—</span>
+      </div>
+      
+      <!-- Linha 2 -->
+      <div class="grid-box" id="boxOut2">
+        <span class="title">Saída 2</span>
+        <span class="value" id="valOut2">—</span>
+      </div>
+      <div class="grid-box" id="boxExtra">
+        <span class="title">Mais Batidas</span>
+        <span class="value" id="valExtra" style="color:var(--accent)">+ Adicionar</span>
+      </div>
+      <div class="grid-box">
+        <span class="title">Total Horas</span>
+        <span class="value" style="color: var(--accent)" id="valTotal">—</span>
+      </div>
+      
+      <!-- Linha 3 -->
+      <div class="grid-box">
+        <span class="title">Hora Extra</span>
+        <span class="value" style="color: var(--success)" id="valExtraHrs">—</span>
+      </div>
+      <div class="grid-box" id="boxJust">
+        <span class="title">Justificativa</span>
+        <span class="value" id="valJust">—</span>
+      </div>
+      <div class="grid-box">
+        <span class="title">Status</span>
+        <span class="value" id="valStatus">—</span>
+      </div>
+    </div>
+    
+    <div class="modal-footer" style="margin-top: 12px; display: flex; gap: 8px;">
+      <button class="btn btn-primary" style="flex: 1; justify-content: center;" onclick="closeJogo()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let allUsers = [], curIdx = 0, curMes = '', curAno = 0, curM = 0;
+
+const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const MESES_PT = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderTopbar('Cartão de Ponto', 'Registro mensal por funcionário');
+  const now = new Date();
+  document.getElementById('fMes').value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  
+  const currentUser = getCurrentUser() || { role: 'funcionario', id: 1 };
+  if (currentUser.role === 'funcionario') {
+    document.getElementById('empresaFilterGroup').style.display = 'none';
+    document.getElementById('cartaoNav').style.display = 'none';
+    
+    const users = DB.get('users');
+    allUsers = users.filter(u => u.id === currentUser.id);
+    curIdx = 0;
+    
+    iniciar();
+  } else if (currentUser.role === 'supervisor') {
+    const users = DB.get('users');
+    const fullMe = users.find(u => u.id === currentUser.id) || currentUser;
+    allUsers = users.filter(u=>u.status==='ativo'&&u.role==='funcionario'&&u.sectorId===fullMe.sectorId);
+    
+    fillEmpresas();
+  } else {
+    fillEmpresas();
+  }
+});
+
+function fillEmpresas() {
+  const sel = document.getElementById('fEmpresa');
+  DB.get('companies').forEach(c => sel.innerHTML += `<option value="${c.id}">${c.name}</option>`);
+  fillFunc();
+}
+
+function fillFunc() {
+  const currentUser = getCurrentUser();
+  const empId = parseInt(document.getElementById('fEmpresa').value)||null;
+  const users = DB.get('users');
+  
+  if (currentUser.role === 'supervisor') {
+    const fullMe = users.find(u => u.id === currentUser.id) || currentUser;
+    allUsers = users.filter(u=>u.status==='ativo'&&u.role==='funcionario'&&u.sectorId===fullMe.sectorId&&(!empId||u.companyId===empId));
+  } else {
+    allUsers = users.filter(u=>u.status==='ativo'&&u.role==='funcionario'&&(!empId||u.companyId===empId));
+  }
+}
+
+function iniciar() {
+  curMes = document.getElementById('fMes').value;
+  [curAno, curM] = curMes.split('-').map(Number);
+  
+  const currentUser = getCurrentUser();
+  if (currentUser.role !== 'funcionario') {
+    fillFunc();
+  }
+  
+  if (!allUsers.length) { toast('Nenhum funcionário encontrado','warning'); return; }
+  
+  document.getElementById('cartaoView').style.display='block';
+  document.getElementById('placeholder').style.display='none';
+  renderCartao();
+}
+
+function navFunc(dir) {
+  curIdx = (curIdx + dir + allUsers.length) % allUsers.length;
+  renderCartao();
+}
+
+function renderCartao() {
+  const u = allUsers[curIdx];
+  document.getElementById('funcNome').textContent = u.name;
+  document.getElementById('funcSub').textContent =
+    `${getSectorName(u.sectorId)} · ${getCompanyName(u.companyId)} · ${getWorkloadName(u.workloadId)}`;
+  document.getElementById('funcPosicao').textContent = `Funcionário ${curIdx+1} de ${allUsers.length}`;
+  document.getElementById('tabelaTitulo').textContent = `Cartão de Ponto — ${u.name}`;
+  
+  const records = DB.get('records').filter(r=>r.userId===u.id);
+  const holidays = DB.get('holidays').map(h=>h.date);
+  const daysInMonth = new Date(curAno, curM, 0).getDate();
+  const todayStr = new Date().toISOString().split('T')[0];
+
+  let totWorkMin=0, totOvMin=0, totalFaltas=0;
+
+  const rows = [];
+  for (let d=1; d<=daysInMonth; d++) {
+    const mStr=String(curM).padStart(2,'0'), dStr=String(d).padStart(2,'0');
+    const dateStr=`${curAno}-${mStr}-${dStr}`;
+    const dow = new Date(curAno, curM - 1, d).getDay();
+    const isWeekend = dow === 0; // Somente Domingo é fim de semana padrão
+    const isHoliday = holidays.includes(dateStr);
+    const rec = records.find(r=>r.date===dateStr);
+    const isPast = dateStr < todayStr;
+
+    let trClass='';
+    if (isHoliday) trClass='holiday-row';
+    else if (isWeekend) trClass='weekend-row';
+    else if (rec && rec.status === 'justificado') trClass='justified-row';
+    else if (!rec && isPast) trClass='absent-row';
+
+    if (rec) {
+      const [h,min]=(rec.hoursWorked||'0h00').split('h').map(Number);
+      totWorkMin+=h*60+min;
+      if (rec.overtime&&rec.overtime!=='0h00') {
+        const [oh,om]=(rec.overtime).split('h').map(Number);
+        totOvMin+=oh*60+(om||0);
+      }
+      totalFaltas+=rec.faults||0;
+    } else if (!isWeekend && !isHoliday && isPast) {
+      // Falta somente para dias passados
+      totalFaltas++;
+    }
+
+    const statusCell = rec
+      ? `<td><span class="status-badge status-${rec.status}">${rec.status}</span></td>`
+      : isHoliday
+      ? '<td><span style="font-size:11px;font-weight:600;color:var(--info)">🏖 Feriado</span></td>'
+      : isWeekend
+      ? '<td><span style="font-size:11px;color:var(--text-muted)">—</span></td>'
+      : isPast
+      ? '<td><span class="status-badge status-pendente">Falta</span></td>'
+      : '<td><span class="status-badge status-inativo" style="background:#e4e7ef;color:#6b7280">Pendente</span></td>';
+
+    rows.push(`<tr class="${trClass}" onclick="openJogoDaVelha('${dateStr}')" style="cursor:pointer;" title="Clique para editar batidas deste dia">
+      <td style="white-space:nowrap;font-weight:500">${fmtDate(dateStr)}</td>
+      <td style="color:${isWeekend?'var(--text-muted)':'inherit'};font-weight:${dow===0?'400':'600'}">${DIAS[dow]}</td>
+      <td>${rec?.in1||'—'}</td>
+      <td>${rec?.out1||'—'}</td>
+      <td>${rec?.in2||'—'}</td>
+      <td>${rec?.out2||'—'}</td>
+      <td style="font-weight:600">${rec?.hoursWorked||'—'}</td>
+      <td style="color:${rec?.overtime&&rec.overtime!=='0h00'?'var(--success)':'var(--text-muted)'}">${rec?.overtime||'—'}</td>
+      <td style="color:${(!isWeekend&&!isHoliday&&!rec&&isPast)?'var(--danger)':'inherit'}">${(!isWeekend&&!isHoliday)?(rec ? (rec.faults||0) : (isPast?'1':'0')):'—'}</td>
+      ${statusCell}
+    </tr>`);
+  }
+
+  document.getElementById('tableBody').innerHTML = rows.join('');
+  
+  // Calcular saldo acumulado do banco do usuário em horas/minutos
+  const banco = u.bankBalance||0;
+  const valBancoSign = banco >= 0 ? '+' : '-';
+  const valBancoAbs = Math.abs(banco);
+  const valBancoStr = `${valBancoSign}${Math.floor(valBancoAbs/60)}h${String(valBancoAbs%60).padStart(2,'0')}`;
+
+  document.getElementById('tableFoot').innerHTML = `<tr>
+    <td colspan="6" style="text-align:right">TOTAIS DO MÊS:</td>
+    <td style="color:var(--accent)">${minToStr(totWorkMin)}</td>
+    <td style="color:var(--success)">${minToStr(totOvMin)}</td>
+    <td style="color:var(--danger)">${totalFaltas}</td>
+    <td></td>
+  </tr>`;
+
+  document.getElementById('totTrab').textContent = minToStr(totWorkMin);
+  document.getElementById('totExtra').textContent = minToStr(totOvMin);
+  document.getElementById('totFaltas').textContent = totalFaltas;
+  document.getElementById('totBanco').textContent = valBancoStr;
+  document.getElementById('totBanco').style.color = banco>=0?'var(--success)':'var(--danger)';
+}
+
+/* ===================== JOGO DA VELHA 3x3 EDITOR ===================== */
+function openJogoDaVelha(dateStr) {
+  const u = allUsers[curIdx];
+  const records = DB.get('records');
+  let rec = records.find(r => r.userId === u.id && r.date === dateStr);
+  
+  if (!rec) {
+    rec = { userId: u.id, date: dateStr, punches: [], in1: '', out1: '', in2: '', out2: '', hoursWorked: '0h00', overtime: '0h00', faults: 0, status: 'pendente' };
+  }
+  if (!rec.punches) {
+    rec.punches = [];
+    if (rec.in1) rec.punches.push(rec.in1);
+    if (rec.out1) rec.punches.push(rec.out1);
+    if (rec.in2) rec.punches.push(rec.in2);
+    if (rec.out2) rec.punches.push(rec.out2);
+    rec.punches.sort((a,b)=>a.localeCompare(b));
+  }
+
+  document.getElementById('jogoDataLabel').textContent = `Folha de: ${u.name} | Dia: ${fmtDate(dateStr)} (${DIAS[new Date(curAno, curM - 1, parseInt(dateStr.split('-')[2])).getDay()]})`;
+
+  // Inserir valores nos boxes
+  document.getElementById('valIn1').textContent = rec.punches[0] || '—';
+  document.getElementById('valOut1').textContent = rec.punches[1] || '—';
+  document.getElementById('valIn2').textContent = rec.punches[2] || '—';
+  document.getElementById('valOut2').textContent = rec.punches[3] || '—';
+  
+  const extraPunches = rec.punches.slice(4);
+  document.getElementById('valExtra').textContent = extraPunches.length ? `+${extraPunches.length} batidas` : '+ Adicionar';
+  
+  document.getElementById('valTotal').textContent = rec.hoursWorked || '—';
+  document.getElementById('valExtraHrs').textContent = rec.overtime || '—';
+  
+  const justLabel = rec.justification || 'Nenhuma';
+  const atestLabel = rec.atestado ? ` (Atestado: ${rec.atestado})` : '';
+  document.getElementById('valJust').textContent = justLabel + atestLabel;
+  document.getElementById('valStatus').textContent = rec.status || '—';
+
+  const currentUser = getCurrentUser();
+
+  // Resetar classes clickables e onclicks
+  ['boxIn1', 'boxOut1', 'boxIn2', 'boxOut2', 'boxExtra', 'boxJust'].forEach(id => {
+    const el = document.getElementById(id);
+    el.classList.remove('clickable');
+    el.onclick = null;
+  });
+
+  // Batidas (Primeiras 4): Funcionário e Admin podem editar manualmente
+  if (currentUser.role === 'funcionario' || currentUser.role === 'admin') {
+    ['boxIn1', 'boxOut1', 'boxIn2', 'boxOut2'].forEach((boxId, index) => {
+      const fields = ['in1', 'out1', 'in2', 'out2'];
+      const el = document.getElementById(boxId);
+      el.classList.add('clickable');
+      el.onclick = () => editTime(dateStr, fields[index]);
+    });
+    
+    // Mais Batidas
+    const elExtra = document.getElementById('boxExtra');
+    elExtra.classList.add('clickable');
+    elExtra.onclick = () => manageExtraPunches(dateStr);
+  }
+
+  // Justificativa / Atestado
+  const elJust = document.getElementById('boxJust');
+  if (currentUser.role === 'admin') {
+    elJust.classList.add('clickable');
+    elJust.onclick = () => editJustificativa(dateStr);
+  } else if (currentUser.role === 'funcionario') {
+    elJust.classList.add('clickable');
+    elJust.onclick = () => editAtestado(dateStr);
+  }
+
+  document.getElementById('modalJogo').classList.add('open');
+}
+
+function closeJogo() {
+  document.getElementById('modalJogo').classList.remove('open');
+}
+
+function editTime(dateStr, field) {
+  const u = allUsers[curIdx];
+  const records = DB.get('records');
+  let rec = records.find(r => r.userId === u.id && r.date === dateStr);
+  let isNew = false;
+  if (!rec) {
+    isNew = true;
+    rec = { id: nextId(records), userId: u.id, date: dateStr, punches: [], in1: '', out1: '', in2: '', out2: '', hoursWorked: '0h00', overtime: '0h00', faults: 0, status: 'pendente' };
+  }
+  if (!rec.punches) rec.punches = [];
+  
+  const labelMap = { in1: 'Entrada 1', out1: 'Saída 1', in2: 'Entrada 2', out2: 'Saída 2' };
+  const fieldIndexMap = { in1: 0, out1: 1, in2: 2, out2: 3 };
+  const punchIndex = fieldIndexMap[field];
+  
+  const currentVal = rec.punches[punchIndex] || '';
+  const val = prompt(`Digite o horário para ${labelMap[field]} (formato HH:MM) ou limpe deixando em branco:`, currentVal);
+  
+  if (val === null) return;
+  if (val !== '' && !/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(val)) {
+    alert('Formato inválido! Use o formato HH:MM (ex: 08:30).');
+    return;
+  }
+  
+  if (val === '') {
+    rec.punches.splice(punchIndex, 1);
+  } else {
+    rec.punches[punchIndex] = val;
+  }
+  
+  rec.punches.sort((a,b)=>a.localeCompare(b));
+  recalcRecord(rec, u);
+  
+  if (isNew) {
+    records.push(rec);
+  } else {
+    const idx = records.findIndex(r => r.id === rec.id);
+    records[idx] = rec;
+  }
+  
+  DB.set('records', records);
+  
+  // Sincronizar o Banco de Horas
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dow = new Date(y, m - 1, d).getDay();
+  const isHoliday = DB.get('holidays').some(h => h.date === dateStr);
+  const standardMin = (dow === 0 || isHoliday) ? 0 : (dow === 6 ? 240 : 480);
+  
+  let totalMin = 0;
+  for (let i = 0; i < rec.punches.length; i += 2) {
+    if (rec.punches[i] && rec.punches[i+1]) {
+      const diff = timeToMin(rec.punches[i+1]) - timeToMin(rec.punches[i]);
+      if (diff > 0) totalMin += diff;
+    }
+  }
+  syncBankLog(u.id, dateStr, totalMin, standardMin);
+
+  logAudit(`Ponto editado (${labelMap[field]})`, `${u.name} - ${fmtDate(dateStr)} para ${val||'limpo'}`);
+  toast('Ponto atualizado!');
+  
+  openJogoDaVelha(dateStr);
+  renderCartao();
+}
+
+function manageExtraPunches(dateStr) {
+  const u = allUsers[curIdx];
+  const records = DB.get('records');
+  let rec = records.find(r => r.userId === u.id && r.date === dateStr);
+  let isNew = false;
+  if (!rec) {
+    isNew = true;
+    rec = { id: nextId(records), userId: u.id, date: dateStr, punches: [], in1: '', out1: '', in2: '', out2: '', hoursWorked: '0h00', overtime: '0h00', faults: 0, status: 'pendente' };
+  }
+  if (!rec.punches) rec.punches = [];
+  
+  const extraPunches = rec.punches.slice(4);
+  const extraListStr = extraPunches.length ? `Batidas extras atuais: ${extraPunches.join(', ')}\n` : 'Nenhuma batida extra cadastrada.\n';
+  
+  const val = prompt(`${extraListStr}Digite a hora da nova batida (formato HH:MM), ou deixe em branco e clique em OK para limpar todas as batidas extras:`);
+  
+  if (val === null) return;
+  
+  if (val.trim() === '') {
+    if (confirm('Deseja realmente limpar todas as batidas extras do dia?')) {
+      rec.punches = rec.punches.slice(0, 4);
+    } else {
+      return;
+    }
+  } else {
+    if (!/^([0-1][0-9]|2[0-3]):[0-5][0-9]$/.test(val.trim())) {
+      alert('Formato inválido! Use o formato HH:MM (ex: 18:30).');
+      return;
+    }
+    rec.punches.push(val.trim());
+    rec.punches.sort((a,b)=>a.localeCompare(b));
+  }
+  
+  recalcRecord(rec, u);
+  
+  if (isNew) {
+    records.push(rec);
+  } else {
+    const idx = records.findIndex(r => r.id === rec.id);
+    records[idx] = rec;
+  }
+  DB.set('records', records);
+  
+  // Sincronizar o Banco de Horas
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dow = new Date(y, m - 1, d).getDay();
+  const isHoliday = DB.get('holidays').some(h => h.date === dateStr);
+  const standardMin = (dow === 0 || isHoliday) ? 0 : (dow === 6 ? 240 : 480);
+  
+  let totalMin = 0;
+  for (let i = 0; i < rec.punches.length; i += 2) {
+    if (rec.punches[i] && rec.punches[i+1]) {
+      const diff = timeToMin(rec.punches[i+1]) - timeToMin(rec.punches[i]);
+      if (diff > 0) totalMin += diff;
+    }
+  }
+  syncBankLog(u.id, dateStr, totalMin, standardMin);
+  
+  logAudit('Ponto editado (extra)', `${u.name} - ${fmtDate(dateStr)}`);
+  toast('Ponto atualizado!');
+  
+  openJogoDaVelha(dateStr);
+  renderCartao();
+}
+
+function editJustificativa(dateStr) {
+  const u = allUsers[curIdx];
+  const records = DB.get('records');
+  let rec = records.find(r => r.userId === u.id && r.date === dateStr);
+  let isNew = false;
+  if (!rec) {
+    isNew = true;
+    rec = { id: nextId(records), userId: u.id, date: dateStr, punches: [], in1: '', out1: '', in2: '', out2: '', hoursWorked: '0h00', overtime: '0h00', faults: 0, status: 'pendente' };
+  }
+  
+  const justifications = DB.get('justifications');
+  const options = justifications.map((j, i) => `${i + 1} - ${j.name}`).join('\n');
+  const choice = prompt(`Selecione a Justificativa para ${fmtDate(dateStr)}:\n0 - Remover Justificativa\n${options}`, '1');
+  
+  if (choice === null) return;
+  const choiceIdx = parseInt(choice);
+  
+  if (choiceIdx === 0) {
+    rec.justification = '';
+    recalcRecord(rec, u);
+  } else {
+    const selected = justifications[choiceIdx - 1];
+    if (selected) {
+      rec.justification = selected.name;
+      rec.status = 'justificado';
+      rec.faults = 0;
+    } else {
+      alert('Opção inválida.');
+      return;
+    }
+  }
+  
+  if (isNew) {
+    records.push(rec);
+  } else {
+    const idx = records.findIndex(r => r.id === rec.id);
+    records[idx] = rec;
+  }
+  
+  DB.set('records', records);
+  
+  // Sincronizar banco
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dow = new Date(y, m - 1, d).getDay();
+  const isHoliday = DB.get('holidays').some(h => h.date === dateStr);
+  const standardMin = (dow === 0 || isHoliday) ? 0 : (dow === 6 ? 240 : 480);
+  
+  let totalMin = 0;
+  if (rec.punches) {
+    for (let i = 0; i < rec.punches.length; i += 2) {
+      if (rec.punches[i] && rec.punches[i+1]) {
+        const diff = timeToMin(rec.punches[i+1]) - timeToMin(rec.punches[i]);
+        if (diff > 0) totalMin += diff;
+      }
+    }
+  }
+  
+  syncBankLog(u.id, dateStr, totalMin, standardMin);
+
+  logAudit(`Justificativa alterada`, `${u.name} - ${fmtDate(dateStr)} para ${rec.justification || 'nenhuma'}`);
+  toast('Justificativa atualizada!');
+  
+  openJogoDaVelha(dateStr);
+  renderCartao();
+}
+
+function editAtestado(dateStr) {
+  const u = allUsers[curIdx];
+  const records = DB.get('records');
+  let rec = records.find(r => r.userId === u.id && r.date === dateStr);
+  
+  if (!rec || !rec.justification) {
+    alert('O administrador precisa adicionar uma justificativa para este dia antes de você anexar um atestado.');
+    return;
+  }
+  
+  const currentAtestado = rec.atestado || '';
+  const val = prompt('Digite a descrição ou nome do arquivo do atestado médico (ex: atestado_2026.pdf) ou deixe em branco para remover:', currentAtestado);
+  
+  if (val === null) return;
+  
+  rec.atestado = val.trim();
+  
+  const idx = records.findIndex(r => r.id === rec.id);
+  records[idx] = rec;
+  
+  DB.set('records', records);
+  logAudit('Atestado adicionado', `${u.name} - ${fmtDate(dateStr)} - ${rec.atestado || 'removido'}`);
+  toast('Atestado atualizado!');
+  
+  openJogoDaVelha(dateStr);
+  renderCartao();
+}
+
+function recalcRecord(rec, u) {
+  if (!rec.punches || !rec.punches.length) {
+    rec.punches = [];
+    if (rec.in1) rec.punches.push(rec.in1);
+    if (rec.out1) rec.punches.push(rec.out1);
+    if (rec.in2) rec.punches.push(rec.in2);
+    if (rec.out2) rec.punches.push(rec.out2);
+    rec.punches.sort((a,b)=>a.localeCompare(b));
+  }
+
+  let totalMin = 0;
+  for (let i = 0; i < rec.punches.length; i += 2) {
+    if (rec.punches[i] && rec.punches[i+1]) {
+      const diff = timeToMin(rec.punches[i+1]) - timeToMin(rec.punches[i]);
+      if (diff > 0) totalMin += diff;
+    }
+  }
+  
+  rec.hoursWorked = minToHoursStr(totalMin);
+  
+  // Sincronizar de volta para campos legados
+  rec.in1 = rec.punches[0] || '';
+  rec.out1 = rec.punches[1] || '';
+  rec.in2 = rec.punches[2] || '';
+  rec.out2 = rec.punches[3] || '';
+
+  const [y, m, d] = rec.date.split('-').map(Number);
+  const dow = new Date(y, m - 1, d).getDay();
+  const isHoliday = DB.get('holidays').some(h => h.date === rec.date);
+  
+  // Segunda a Sexta: 8h, Sábado: 4h, Domingo/Feriado: 0h
+  const standardMin = (dow === 0 || isHoliday) ? 0 : (dow === 6 ? 240 : 480);
+  
+  const todayStr = new Date().toISOString().split('T')[0];
+  const isPast = rec.date < todayStr;
+  
+  if (totalMin > standardMin) {
+    rec.overtime = minToHoursStr(totalMin - standardMin);
+    rec.faults = 0;
+  } else {
+    rec.overtime = '0h00';
+    if (isPast) {
+      if (standardMin > 0 && totalMin === 0 && !rec.justification) {
+        rec.faults = 1;
+      } else {
+        rec.faults = 0;
+      }
+    } else {
+      rec.faults = 0;
+    }
+  }
+  
+  if (totalMin > 0) {
+    rec.status = 'completo';
+  } else {
+    if (rec.justification) {
+      rec.status = 'justificado';
+      rec.faults = 0;
+    } else {
+      rec.status = isPast ? 'falta' : 'pendente';
+    }
+  }
+}
+
+// Sincronização automática com a tabela de movimentações do banco de horas
+function syncBankLog(userId, dateStr, totalMin, standardMin) {
+  const bank = DB.get('bank');
+  const filtered = bank.filter(b => !(b.userId === userId && b.date === dateStr));
+  
+  const todayStr = new Date().toISOString().split('T')[0];
+  const isPast = dateStr < todayStr;
+  
+  if (totalMin > standardMin) {
+    const diff = totalMin - standardMin;
+    filtered.push({
+      id: nextId(filtered),
+      userId,
+      date: dateStr,
+      type: 'Hora Extra',
+      hours: '+' + minToHoursStr(diff),
+      obs: 'Hora extra calculada'
+    });
+  } else if (totalMin < standardMin && isPast) {
+    const diff = standardMin - totalMin;
+    filtered.push({
+      id: nextId(filtered),
+      userId,
+      date: dateStr,
+      type: 'Falta',
+      hours: '-' + minToHoursStr(diff),
+      obs: totalMin === 0 ? 'Falta completa' : 'Atraso/Saída antecipada'
+    });
+  }
+  
+  DB.set('bank', filtered);
+  recalcUserBankBalance(userId);
+}
+
+function recalcUserBankBalance(userId) {
+  const users = DB.get('users');
+  const u = users.find(x => x.id === userId);
+  if (!u) return;
+  
+  const bank = DB.get('bank').filter(b => b.userId === userId);
+  let balance = 0;
+  bank.forEach(b => {
+    const clean = b.hours.replace(/[+\-]/g, '');
+    const [h, m] = clean.split('h').map(Number);
+    const mins = h * 60 + m;
+    if (b.hours.startsWith('+')) {
+      balance += mins;
+    } else {
+      balance -= mins;
+    }
+  });
+  
+  u.bankBalance = balance;
+  DB.set('users', users);
+}
+
+function timeToMin(tStr) {
+  if (!tStr || tStr === '—' || !tStr.includes(':')) return 0;
+  const [h, m] = tStr.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function minToHoursStr(min) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${h}h${String(m).padStart(2, '0')}`;
+}
+
+function minToStr(min){ const h=Math.floor(min/60),m=min%60; return `${h}h${String(m).padStart(2,'0')}`; }
+
+function exportarPDF(){toast('PDF requer backend integrado','warning');}
+function exportarExcel(){toast('Excel requer backend integrado','warning');}
+</script>
+</body>
+</html>

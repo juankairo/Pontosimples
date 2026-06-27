@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/assets/css/global.css">
+    <link rel="stylesheet" href="/assets/css/login.css" />
+    <title>Página de Login - Stylle Ponto</title>
+    <!-- Route Guard e DB Helpers -->
+    <script src="/assets/js/app.js"></script>
+    <style>
+      /* Adicionando alguns estilos para mensagens de erro/toast */
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: #333;
+        color: #fff;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-family: sans-serif;
+        font-size: 14px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.3s, transform 0.3s;
+        z-index: 1000;
+      }
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      .toast-success { background: #16a34a; }
+      .toast-warning { background: #d97706; }
+      .toast-error { background: #dc2626; }
+    </style>
+  </head>
+  <body>
+    <section>
+      <div class="lado-dir">
+        <div class="topo">
+          <img src="/assets/icons/logo.svg" alt="logo" />
+          <p class="header">Controle de ponto</p>
+        </div>
+        <div class="main">
+          <h1>Gerencie sua <br />equipe com <br />precisão.</h1>
+          <p class="pp">
+            Registro de ponto simples, relatórios em tempo <br />real e gestão
+            completa de equipes em um só <br />lugar.
+          </p>
+          <div class="p">
+            <div class="p-sup">
+              <p>Registros </p>
+              <p>Relatórios</p>
+              <p>Multi-perfil</p>
+            </div>
+            <div class="p-inf">
+              <p>Automáticos</p>
+              <p> Em tempo real</p>
+              <p>Admin / Supervisor</p>
+            </div>
+          </div>
+        </div>
+        <footer>
+          <p>&copy; 2026 Stylle Ponto. Todos os direitos reservados.</p>
+        </footer>
+      </div>
+      <div class="lado-esq">
+        <main>
+          <header>
+            <h2>Bem-vindo de volta</h2>
+            <p>Entre com sua conta para continuar</p>
+          </header>
+          <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="email">
+              <label for="emailInput">Email</label>
+              <input type="email" id="emailInput" placeholder="seu@gmail.com" required />
+            </div>
+            <div class="senha">
+              <label class="senha-l" for="passwordInput">Senha</label>
+              <a href="/pages/password/index.html">Esqueceu a senha?</a>
+              <input type="password" id="passwordInput" placeholder="**********" required />
+            </div>
+            <button type="submit">Entrar</button>
+          </form>
+          <div class="footer">
+            <p>Não tem conta?</p><a href="/pages/cadastro/index.html">Cadastre-se agora</a>
+          </div>
+        </main>
+      </div>
+    </section>
+
+    <script>
+      function handleLogin(event) {
+        event.preventDefault();
+        
+        const email = document.getElementById('emailInput').value.trim();
+        const password = document.getElementById('passwordInput').value;
+
+        // Validar e-mail simples
+        if (!email || !email.includes('@')) {
+          toast('Por favor, insira um e-mail válido.', 'warning');
+          return;
+        }
+
+        if (password.length < 4) {
+          toast('A senha deve conter pelo menos 4 caracteres.', 'warning');
+          return;
+        }
+
+        const users = DB.get('users');
+        const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+
+        if (!user) {
+          toast('Usuário não encontrado.', 'error');
+          return;
+        }
+
+        if (user.password !== password) {
+          toast('E-mail ou senha incorretos.', 'error');
+          return;
+        }
+
+        if (user.status === 'pendente') {
+          toast('Sua conta ainda não foi aprovada pelo administrador.', 'warning');
+          return;
+        }
+
+        if (user.status === 'recusado' || user.status === 'inativo') {
+          toast('Sua conta está desativada ou foi recusada.', 'error');
+          return;
+        }
+
+        // Login efetuado com sucesso
+        DB.setObj('currentUser', { id: user.id, name: user.name, role: user.role });
+        
+        // Registrar log de auditoria
+        logAudit('Login no sistema');
+        
+        toast('Login efetuado com sucesso! Redirecionando...', 'success');
+        
+        setTimeout(() => {
+          window.location.href = '/pages/adm/dashboard.html';
+        }, 1200);
+      }
+    </script>
+  </body>
+</html>
