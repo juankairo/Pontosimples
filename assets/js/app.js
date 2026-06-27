@@ -9,14 +9,11 @@ const DB = {
 /* ===================== ROUTE GUARD ===================== */
 (function checkAuth() {
   const path = window.location.pathname;
-  const isAuthPage = path.includes('/pages/login/') || path.includes('/pages/cadastro/') || path.includes('/pages/password/');
   const isAdmPage = path.includes('/pages/adm/');
   const user = DB.getObj('currentUser', null);
 
   if (isAdmPage && !user) {
     window.location.href = '/pages/login/index.html';
-  } else if (isAuthPage && user) {
-    window.location.href = '/pages/adm/dashboard.html';
   }
 })();
 
