@@ -77,7 +77,7 @@ try {
 
   // Configurações
   const insertSetting = db.prepare('INSERT INTO settings (key, value) VALUES (?, ?)');
-  insertSetting.run('systemName', 'Stylle Ponto');
+  insertSetting.run('systemName', 'Ponto Eletrônico');
   insertSetting.run('primaryColor', '#0b1d4d');
   insertSetting.run('secondaryColor', '#2563EB');
   insertSetting.run('senderEmail', 'noreply@stylleponto.com');

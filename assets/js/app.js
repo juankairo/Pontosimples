@@ -77,7 +77,7 @@ function initData() {
   DB.set('audit', audit);
   DB.set('notifications', []);
   DB.setObj('settings', {
-    systemName: 'Stylle Ponto', primaryColor: '#0b1d4d', secondaryColor: '#2563EB',
+    systemName: 'Ponto Eletrônico', primaryColor: '#0b1d4d', secondaryColor: '#2563EB',
     senderEmail: 'noreply@stylleponto.com', delayTolerance: 10, overtimeMinimum: 10
   });
   

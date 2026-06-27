@@ -1,4 +1,4 @@
--- Esquema de Banco de Dados SQLite para o projeto Stylle Ponto
+-- Esquema de Banco de Dados SQLite para o projeto Ponto Eletrônico
 
 -- Tabela de Empresas
 CREATE TABLE IF NOT EXISTS companies (

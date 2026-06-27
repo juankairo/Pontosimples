@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563EB' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10' stroke='%230b1d4d' stroke-width='2.5'/%3E%3Cpolyline points='12 6 12 12 16 14'/%3E%3C/svg%3E">
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Configurações - Stylle Ponto</title>
+<title>Configurações - Ponto Eletrônico</title>
 <link rel="stylesheet" href="/assets/css/styles.css">
 <script src="/assets/js/app.js"></script>
 </head>
@@ -19,7 +20,7 @@
         <div class="settings-section">
           <h3>⚙️ Configurações Gerais</h3>
           <div class="form-group"><label>Nome do Sistema</label>
-            <input type="text" class="form-control" id="sNome" placeholder="Stylle Ponto">
+            <input type="text" class="form-control" id="sNome" placeholder="Ponto Eletrônico">
           </div>
           <div class="form-group"><label>E-mail Remetente</label>
             <input type="email" class="form-control" id="sEmail" placeholder="noreply@empresa.com">
@@ -94,7 +95,7 @@
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
             </div>
             <div>
-              <div id="prevNome" style="font-size:14px;font-weight:700;color:white">Stylle Ponto</div>
+              <div id="prevNome" style="font-size:14px;font-weight:700;color:white">Ponto Eletrônico</div>
               <div style="font-size:10px;color:rgba(255,255,255,.6)">Sistema de Ponto</div>
             </div>
           </div>
@@ -146,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function carregarConfig() {
   const s = DB.getObj('settings', {});
-  document.getElementById('sNome').value        = s.systemName||'Stylle Ponto';
+  document.getElementById('sNome').value        = s.systemName||'Ponto Eletrônico';
   document.getElementById('sEmail').value       = s.senderEmail||'noreply@stylleponto.com';
   document.getElementById('sLogo').value        = s.logo||'';
   document.getElementById('sCor1').value        = s.primaryColor||'#0b1d4d';
@@ -169,7 +170,7 @@ function previewColor() {
   document.getElementById('prev2').style.background = c2;
   document.getElementById('prevSidebar').style.background = c1;
   document.getElementById('prevBtn').style.background = c2;
-  document.getElementById('prevNome').textContent = document.getElementById('sNome').value||'Stylle Ponto';
+  document.getElementById('prevNome').textContent = document.getElementById('sNome').value||'Ponto Eletrônico';
 }
 
 function syncColorFromText(colorId, hexId) {
@@ -206,7 +207,7 @@ function salvar() {
 
 function resetarPadrao() {
   if (!confirm('Restaurar configurações padrão?')) return;
-  DB.setObj('settings', { systemName:'Stylle Ponto', primaryColor:'#0b1d4d', secondaryColor:'#2563EB', senderEmail:'noreply@stylleponto.com', delayTolerance:'10', overtimeMinimum:'10', bankEnabled:'sim' });
+  DB.setObj('settings', { systemName:'Ponto Eletrônico', primaryColor:'#0b1d4d', secondaryColor:'#2563EB', senderEmail:'noreply@stylleponto.com', delayTolerance:'10', overtimeMinimum:'10', bankEnabled:'sim' });
   carregarConfig();
   toast('Configurações restauradas!');
 }
